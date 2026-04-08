@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Almuerzos CEEP</title>
+  <meta name="description" content="Sistema ligero para venta y control de almuerzos diarios.">
+  <meta name="theme-color" content="#a33d4d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__content">
+      <p class="eyebrow">Control diario de almuerzos</p>
+      <h1>Almuerzos CEEP</h1>
+      <p class="hero__text">
+        Consulta el menú, revisa cupos disponibles y registra compras sin tiquete físico.
+      </p>
+      <div class="hero__meta">
+        <span id="statusBadge" class="badge badge--muted">Cargando estado...</span>
+        <span id="updatedAt" class="muted">Sincronizando...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card card--menu">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Menú del día</p>
+          <h2 id="menuTitle">Cargando menú...</h2>
+        </div>
+        <div class="availability">
+          <span class="availability__label">Disponibles</span>
+          <strong id="availableCount">0</strong>
+        </div>
+      </div>
+      <p id="menuDescription" class="menu-description">Esperando datos del servidor.</p>
+      <div class="menu-details">
+        <div>
+          <span class="detail-label">Precio</span>
+          <strong id="menuPrice">-</strong>
+        </div>
+        <div>
+          <span class="detail-label">Entrega</span>
+          <strong id="deliveryWindow">12:00 m. - 12:30 p. m.</strong>
+        </div>
+        <div>
+          <span class="detail-label">Venta</span>
+          <strong id="salesWindow">10:00 a. m. - 12:00 m.</strong>
+        </div>
+      </div>
+      <div class="notice">
+        <p id="dailyMessage">
+          La cantidad máxima es de 15 almuerzos por día.
+        </p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Solicitud</p>
+          <h2>Registrar compra</h2>
+        </div>
+      </div>
+
+      <form id="orderForm" class="form">
+        <label>
+          Nombre completo
+          <input id="buyerName" name="buyerName" type="text" maxlength="80" required autocomplete="name">
+        </label>
+
+        <label>
+          Identificación o carné
+          <input id="buyerId" name="buyerId" type="text" maxlength="40" required>
+        </label>
+
+        <label>
+          Teléfono
+          <input id="buyerPhone" name="buyerPhone" type="tel" maxlength="20" required autocomplete="tel">
+        </label>
+
+        <label>
+          Método de pago
+          <select id="paymentMethod" name="paymentMethod" required>
+            <option value="">Seleccione una opción</option>
+            <option value="SINPE">SINPE móvil</option>
+            <option value="EFECTIVO">Efectivo</option>
+          </select>
+        </label>
+
+        <label>
+          Comprobante o referencia
+          <input id="paymentReference" name="paymentReference" type="text" maxlength="120" placeholder="Ejemplo: comprobante SINPE o nota breve">
+        </label>
+
+        <label>
+          Observaciones
+          <textarea id="notes" name="notes" rows="3" maxlength="200" placeholder="Opcional"></textarea>
+        </label>
+
+        <button id="submitButton" type="submit" class="button">Registrar almuerzo</button>
+        <p id="formFeedback" class="feedback" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card card--split">
+      <div>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Operación</p>
+            <h2>Pagos en tiempo real</h2>
+          </div>
+        </div>
+        <div class="stats">
+          <article class="stat">
+            <span>Vendidos</span>
+            <strong id="soldCount">0</strong>
+          </article>
+          <article class="stat">
+            <span>SINPE</span>
+            <strong id="sinpeCount">0</strong>
+          </article>
+          <article class="stat">
+            <span>Efectivo</span>
+            <strong id="cashCount">0</strong>
+          </article>
+          <article class="stat">
+            <span>Total</span>
+            <strong id="totalAmount">CRC 0</strong>
+          </article>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Cocina</p>
+            <h2>Lista de compras</h2>
+          </div>
+          <button id="refreshButton" type="button" class="button button--ghost">Actualizar</button>
+        </div>
+        <div id="buyersList" class="buyers-list">
+          <p class="empty-state">No hay compras registradas todavía.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="buyerRowTemplate">
+    <article class="buyer-row">
+      <div>
+        <strong class="buyer-name"></strong>
+        <p class="buyer-meta"></p>
+      </div>
+      <span class="badge buyer-payment"></span>
+    </article>
+  </template>
+
+  <script src="./config.js"></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

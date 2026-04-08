@@ -1,0 +1,9 @@
+{
+  "name": "Almuerzos CEEP",
+  "short_name": "CEEP",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6efe8",
+  "theme_color": "#a33d4d",
+  "icons": []
+}
