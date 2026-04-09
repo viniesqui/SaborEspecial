@@ -150,7 +150,7 @@
 
   async function fetchJson(path, options) {
     if (!config.apiBaseUrl || config.apiBaseUrl.includes("PEGUE_AQUI")) {
-      throw new Error("Debe configurar la URL del Apps Script en config.js");
+      throw new Error("Debe configurar la URL del backend en config.js");
     }
 
     const requestOptions = {
@@ -159,7 +159,7 @@
 
     if (options && options.body) {
       requestOptions.headers = {
-        "Content-Type": "text/plain;charset=utf-8"
+        "Content-Type": "application/json"
       };
       requestOptions.body = JSON.stringify(options.body);
     }
@@ -175,7 +175,7 @@
 
   async function refreshSnapshot(showErrors) {
     try {
-      const snapshot = await fetchJson("?action=dashboard");
+      const snapshot = await fetchJson("/dashboard");
       saveCachedSnapshot(snapshot);
       renderSnapshot(snapshot, false);
     } catch (error) {
@@ -217,12 +217,9 @@
     setFeedback("Registrando compra...", false);
 
     try {
-      const result = await fetchJson("", {
+      const result = await fetchJson("/orders", {
         method: "POST",
-        body: {
-          action: "createOrder",
-          order: payload
-        }
+        body: { order: payload }
       });
 
       if (!result.ok) {

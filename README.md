@@ -41,6 +41,67 @@ Puede publicar esta carpeta como sitio estatico en:
 
 Si cuando dijo "Google Pages" se referia a `GitHub Pages`, esta estructura ya funciona muy bien ahi.
 
+## Backend con MongoDB Atlas
+
+Si quiere usar MongoDB Atlas, mantenga el frontend en GitHub Pages y despliegue el backend en Vercel.
+
+### Variables de entorno en Vercel
+
+- `MONGODB_URI`
+- `MONGODB_DB_NAME=ceep_lunches`
+
+### Colecciones esperadas
+
+- `settings`
+- `menus`
+- `orders`
+
+### Documento inicial en `settings`
+
+```json
+{
+  "key": "app_config",
+  "timezone": "America/Costa_Rica",
+  "maxMeals": 15,
+  "salesStart": "10:00",
+  "salesEnd": "12:00",
+  "deliveryWindow": "12:00 - 12:30",
+  "disableSalesWindow": true,
+  "message": "Venta maxima de 15 almuerzos por dia."
+}
+```
+
+### Documento inicial en `menus`
+
+```json
+{
+  "dayKey": "2026-04-09",
+  "title": "Casado con pollo",
+  "description": "Arroz, frijoles, ensalada, pollo y fresco natural",
+  "price": 1000,
+  "active": true
+}
+```
+
+### Endpoints
+
+- `GET /api/dashboard`
+- `POST /api/orders`
+
+### Configuracion del frontend
+
+En `config.js`, reemplace:
+
+```js
+apiBaseUrl: "PEGUE_AQUI_SU_URL_DE_VERCEL_API"
+```
+
+por algo como:
+
+```js
+apiBaseUrl: "https://su-proyecto.vercel.app/api"
+```
+
 ## Uso local
 
 Abra `index.html` con un servidor estatico simple o publique el sitio directamente.

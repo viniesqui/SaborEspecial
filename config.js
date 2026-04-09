@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  apiBaseUrl: "https://script.google.com/macros/s/AKfycbxkn6PkVkoCrNBGs9sVJKghIft62gs5jgbz04FXp4yKPqSXE4JmGW41LcjwCkDNzZSi/exec",
+  apiBaseUrl: "PEGUE_AQUI_SU_URL_DE_VERCEL_API",
   businessName: "Almuerzos CEEP",
   maxDailyMeals: 15,
   refreshIntervalMs: 30000,
