@@ -49,6 +49,7 @@ Si quiere usar MongoDB Atlas, mantenga el frontend en GitHub Pages y despliegue 
 
 - `MONGODB_URI`
 - `MONGODB_DB_NAME=ceep_lunches`
+- `ADMIN_SECRET`
 
 ### Colecciones esperadas
 
@@ -87,6 +88,18 @@ Si quiere usar MongoDB Atlas, mantenga el frontend en GitHub Pages y despliegue 
 
 - `GET /api/dashboard`
 - `POST /api/orders`
+- `POST /api/menu`
+
+### Actualizar el menú sin entrar a MongoDB
+
+La web ahora incluye un formulario administrativo para guardar el menú del día directamente en MongoDB.
+
+Para que funcione:
+
+1. Cree `ADMIN_SECRET` en Vercel con una clave privada.
+2. En la página, abra la sección `Actualizar menú del día`.
+3. Escriba la clave, el nombre del menú, la descripción y el precio.
+4. El sistema guardará o actualizará automáticamente el menú de la fecha actual en MongoDB.
 
 ### Configuracion del frontend
 
