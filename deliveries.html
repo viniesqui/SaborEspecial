@@ -20,7 +20,7 @@
       </nav>
     </header>
 
-    <main class="admin-layout">
+    <main class="admin-layout delivery-page">
       <section id="deliveriesGate" class="card admin-gate">
         <div class="section-title">
           <div>
@@ -44,24 +44,19 @@
         </form>
       </section>
 
-      <section id="deliveriesContent" class="admin-content" hidden>
-        <section class="admin-hero">
-          <p class="eyebrow">Entregas</p>
-          <h1>Lista del día</h1>
-          <p class="admin-hero__text">
-            Revise cuántos almuerzos faltan por entregar y la lista actual de personas registradas.
-          </p>
-        </section>
-
-        <section class="card admin-card admin-card--wide">
-          <div class="section-title">
-            <div>
-              <p class="eyebrow">Resumen</p>
-              <h2 id="deliveriesMenuTitle">Cargando menú...</h2>
-            </div>
-            <span id="deliveriesUpdatedAt" class="muted">Sincronizando...</span>
+      <section id="deliveriesContent" class="delivery-board" hidden>
+        <div class="delivery-toolbar">
+          <div>
+            <p class="eyebrow">Entregas del día</p>
+            <h1 id="deliveriesMenuTitle" class="delivery-board__title">Cargando menú...</h1>
           </div>
+          <div class="delivery-toolbar__actions">
+            <span id="deliveriesUpdatedAt" class="muted">Sincronizando...</span>
+            <button id="deliveriesRefreshButton" type="button" class="button button--ghost">Actualizar</button>
+          </div>
+        </div>
 
+        <section class="card delivery-summary-card">
           <div class="delivery-summary-grid">
             <article class="delivery-summary">
               <span>PEDIDOS</span>
@@ -77,35 +72,27 @@
             </article>
           </div>
 
-          <div class="menu-details">
-            <div>
+          <div class="delivery-meta-row">
+            <div class="delivery-meta-pill">
               <span class="detail-label">Precio</span>
               <strong id="deliveriesMenuPrice">-</strong>
             </div>
-            <div>
+            <div class="delivery-meta-pill">
               <span class="detail-label">Venta</span>
               <strong id="deliveriesSalesWindow">-</strong>
             </div>
-            <div>
+            <div class="delivery-meta-pill">
               <span class="detail-label">Entrega</span>
               <strong id="deliveriesDeliveryWindow">-</strong>
             </div>
-            <div>
+            <div class="delivery-meta-pill">
               <span class="detail-label">Total cobrado</span>
               <strong id="deliveriesTotalAmount">0</strong>
             </div>
           </div>
         </section>
 
-        <section class="card admin-card admin-card--wide">
-          <div class="section-title">
-            <div>
-              <p class="eyebrow">Cocina</p>
-              <h2>Pedidos registrados</h2>
-            </div>
-            <button id="deliveriesRefreshButton" type="button" class="button button--ghost">Actualizar</button>
-          </div>
-
+        <section class="card delivery-table-card">
           <div class="delivery-table">
             <div class="delivery-table__head">
               <span>PEDIDO</span>
