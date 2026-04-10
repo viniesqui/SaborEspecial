@@ -10,7 +10,6 @@ function validateOrder(order) {
 
 function normalizeOrder(order, menu, dayKey) {
   const createdAt = new Date();
-  const isCash = String(order.paymentMethod || "").trim() === "EFECTIVO";
 
   return {
     createdAt,
@@ -19,8 +18,8 @@ function normalizeOrder(order, menu, dayKey) {
     buyerId: "",
     buyerPhone: "",
     paymentMethod: String(order.paymentMethod || "").trim(),
-    paymentStatus: isCash ? "PAGADO" : "PENDIENTE_DE_PAGO",
-    paymentConfirmedAt: isCash ? createdAt : null,
+    paymentStatus: "PENDIENTE_DE_PAGO",
+    paymentConfirmedAt: null,
     paymentReference: "",
     notes: "",
     menuTitle: menu?.title || "Menu no configurado",
