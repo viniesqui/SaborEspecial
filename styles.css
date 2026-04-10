@@ -373,7 +373,7 @@ textarea {
 }
 
 .delivery-action {
-  width: 100%;
+  width: min(100%, 18rem);
   min-height: 3.5rem;
   padding: 0.65rem 0.9rem;
   border-radius: 999px;
@@ -513,7 +513,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: min(100%, 18rem);
   min-height: 3.5rem;
   padding: 0.72rem 1.1rem;
   font-weight: 800;
@@ -555,7 +555,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: min(100%, 18rem);
   min-height: 3.5rem;
   padding: 0.72rem 1.1rem;
   border-radius: 999px;
