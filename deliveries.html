@@ -53,7 +53,7 @@
           </p>
         </section>
 
-        <section class="card admin-card">
+        <section class="card admin-card admin-card--wide">
           <div class="section-title">
             <div>
               <p class="eyebrow">Resumen</p>
@@ -62,22 +62,18 @@
             <span id="deliveriesUpdatedAt" class="muted">Sincronizando...</span>
           </div>
 
-          <div class="stats">
-            <article class="stat">
-              <span>Total pedidos</span>
+          <div class="delivery-summary-grid">
+            <article class="delivery-summary">
+              <span>PEDIDOS</span>
               <strong id="deliveriesTotalOrders">0</strong>
             </article>
-            <article class="stat">
-              <span>Pendientes</span>
-              <strong id="deliveriesPendingOrders">0</strong>
-            </article>
-            <article class="stat">
-              <span>Entregados</span>
+            <article class="delivery-summary">
+              <span>ENTREGADOS</span>
               <strong id="deliveriesDeliveredOrders">0</strong>
             </article>
-            <article class="stat">
-              <span>Total cobrado</span>
-              <strong id="deliveriesTotalAmount">0</strong>
+            <article class="delivery-summary">
+              <span>PENDIENTES</span>
+              <strong id="deliveriesPendingOrders" class="delivery-summary__alert">0</strong>
             </article>
           </div>
 
@@ -94,10 +90,14 @@
               <span class="detail-label">Entrega</span>
               <strong id="deliveriesDeliveryWindow">-</strong>
             </div>
+            <div>
+              <span class="detail-label">Total cobrado</span>
+              <strong id="deliveriesTotalAmount">0</strong>
+            </div>
           </div>
         </section>
 
-        <section class="card admin-card admin-card--summary">
+        <section class="card admin-card admin-card--wide">
           <div class="section-title">
             <div>
               <p class="eyebrow">Cocina</p>
@@ -105,8 +105,17 @@
             </div>
             <button id="deliveriesRefreshButton" type="button" class="button button--ghost">Actualizar</button>
           </div>
-          <div id="deliveriesList" class="buyers-list">
-            <p class="empty-state">No hay compras registradas todavía.</p>
+
+          <div class="delivery-table">
+            <div class="delivery-table__head">
+              <span>PEDIDO</span>
+              <span>ESTADO DEL PAGO</span>
+              <span>ENTREGA</span>
+              <span>FECHA Y HORA DE ENTREGADO</span>
+            </div>
+            <div id="deliveriesList" class="delivery-table__body">
+              <p class="empty-state">No hay compras registradas todavía.</p>
+            </div>
           </div>
         </section>
       </section>
@@ -114,21 +123,22 @@
   </div>
 
   <template id="deliveryRowTemplate">
-    <article class="delivery-row">
-      <div class="delivery-row__main">
+    <article class="delivery-table__row">
+      <div class="delivery-table__cell">
         <strong class="buyer-name"></strong>
         <p class="buyer-meta"></p>
-        <p class="delivery-status-line">
-          <span class="detail-label">Pago</span>
-          <strong class="delivery-payment-status"></strong>
-        </p>
       </div>
-      <div class="delivery-row__aside">
-        <span class="badge buyer-payment"></span>
+      <div class="delivery-table__cell">
+        <span class="delivery-payment-status"></span>
+      </div>
+      <div class="delivery-table__cell">
         <div class="delivery-actions" role="group" aria-label="Estado de entrega">
           <button type="button" class="delivery-action" data-delivery-status="PENDIENTE_ENTREGA">Pendiente</button>
           <button type="button" class="delivery-action" data-delivery-status="ENTREGADO">Entregado</button>
         </div>
+      </div>
+      <div class="delivery-table__cell">
+        <strong class="delivery-delivered-at">-</strong>
       </div>
     </article>
   </template>

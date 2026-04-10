@@ -26,6 +26,20 @@ function formatTimestamp(value) {
   if (!value) return "";
 
   return new Intl.DateTimeFormat("es-CR", {
+    timeZone: "America/Costa_Rica",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat("es-CR", {
+    timeZone: "America/Costa_Rica",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
@@ -57,7 +71,8 @@ function buildDeliveriesSnapshot(settingsDoc, menuDoc, orders) {
       paymentMethod: item.paymentMethod,
       paymentStatus: item.paymentStatus,
       deliveryStatus: item.deliveryStatus || "PENDIENTE_ENTREGA",
-      timestampLabel: formatTimestamp(item.createdAt)
+      timestampLabel: formatTimestamp(item.createdAt),
+      deliveredAtLabel: item.deliveredAt ? formatDateTime(item.deliveredAt) : ""
     }))
   };
 }

@@ -38,6 +38,20 @@
     els.deliveriesGateFeedback.style.color = isError ? "#842f3d" : "#705d52";
   }
 
+  function getPaymentLabel(paymentStatus) {
+    const normalized = String(paymentStatus || "").toUpperCase();
+    if (["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"].includes(normalized)) {
+      return "PAGADO";
+    }
+    return "PENDIENTE DE PAGO";
+  }
+
+  function getPaymentClass(paymentStatus) {
+    return getPaymentLabel(paymentStatus) === "PAGADO"
+      ? "delivery-payment-status delivery-payment-status--paid"
+      : "delivery-payment-status delivery-payment-status--pending";
+  }
+
   function formatDateTime(value) {
     if (!value) return "Sin datos recientes";
     const date = new Date(value);
@@ -95,13 +109,10 @@
       node.querySelector(".buyer-name").textContent = order.buyerName;
       node.querySelector(".buyer-meta").textContent =
         [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
-      node.querySelector(".delivery-payment-status").textContent = order.paymentStatus || "-";
-
-      const badge = node.querySelector(".buyer-payment");
-      badge.textContent = order.deliveryStatus === "ENTREGADO" ? "Entregado" : "Pendiente";
-      badge.className = order.deliveryStatus === "ENTREGADO"
-        ? "badge badge--success buyer-payment"
-        : "badge badge--warning buyer-payment";
+      const paymentNode = node.querySelector(".delivery-payment-status");
+      paymentNode.textContent = getPaymentLabel(order.paymentStatus);
+      paymentNode.className = getPaymentClass(order.paymentStatus);
+      node.querySelector(".delivery-delivered-at").textContent = order.deliveredAtLabel || "-";
 
       node.querySelectorAll(".delivery-action").forEach(function (button) {
         const isSelected = button.dataset.deliveryStatus === order.deliveryStatus;
@@ -165,6 +176,7 @@
       const snapshot = await fetchJson("/deliveries");
       els.deliveriesGate.hidden = true;
       els.deliveriesContent.hidden = false;
+      setGateFeedback("");
       renderSnapshot(snapshot);
     } catch (error) {
       ordersPassword = "";
