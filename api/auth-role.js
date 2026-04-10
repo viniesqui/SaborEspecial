@@ -4,7 +4,7 @@ const ROLE_MAP = [
   {
     role: "CUSTOMER",
     envKey: "CUSTOMER_PASSWORD",
-    route: "./customer.html"
+    route: "./customer-app.html"
   },
   {
     role: "HELPER",

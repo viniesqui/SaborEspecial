@@ -4,7 +4,7 @@
   const config = window.APP_CONFIG || {};
   const SESSION_KEY = "ceep-role-session";
   const ROLE_ROUTE_MAP = {
-    CUSTOMER: "./customer.html",
+    CUSTOMER: "./customer-app.html",
     HELPER: "./helper.html",
     ADMIN: "./admin.html",
     ORDERS: "./deliveries.html"
