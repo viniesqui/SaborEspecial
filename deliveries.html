@@ -12,39 +12,14 @@
 <body>
   <div class="site-shell">
     <header class="site-header">
-      <a href="./index.html" class="site-brand">Almuerzos CEEP</a>
+      <a href="./deliveries.html" class="site-brand">Almuerzos CEEP</a>
       <nav class="site-nav" aria-label="Principal">
-        <a class="site-nav__link" href="./index.html">Inicio</a>
-        <a class="site-nav__link" href="./admin.html">Administración</a>
-        <a class="site-nav__link is-active" href="./deliveries.html">Entregas</a>
+        <button type="button" id="deliveriesLogoutButton" class="site-nav__link site-nav__button">Salir</button>
       </nav>
     </header>
 
     <main class="admin-layout delivery-page">
-      <section id="deliveriesGate" class="card admin-gate">
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Acceso de entregas</p>
-            <h1>Ingrese la clave</h1>
-          </div>
-        </div>
-        <p class="admin-hero__text">
-          Esta vista muestra las compras del día para cocina y entregas. Ingrese la clave o vuelva al inicio.
-        </p>
-        <form id="deliveriesGateForm" class="form">
-          <label>
-            Clave de entregas
-            <input id="deliveriesSecret" name="deliveriesSecret" type="password" maxlength="120" required autofocus>
-          </label>
-          <div class="gate-actions">
-            <button id="deliveriesGateSubmitButton" type="submit" class="button">Ingresar</button>
-            <a class="button button--ghost" href="./index.html">Volver a inicio</a>
-          </div>
-          <p id="deliveriesGateFeedback" class="feedback" aria-live="polite"></p>
-        </form>
-      </section>
-
-      <section id="deliveriesContent" class="delivery-board" hidden>
+      <section id="deliveriesContent" class="delivery-board">
         <div class="delivery-toolbar">
           <span id="deliveriesMenuTitle" hidden>Cargando menú...</span>
           <div class="delivery-toolbar__actions">

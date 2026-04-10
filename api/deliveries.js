@@ -4,17 +4,19 @@ import { handleOptions, setCors } from "../lib/http.js";
 import { ObjectId } from "mongodb";
 
 function getOrdersPassword(req) {
-  return String(req.headers["x-orders-password"] || "");
+  return String(req.headers["x-orders-password"] || req.headers["x-access-password"] || "");
 }
 
 function ensureAuthorized(req, res) {
-  const expectedPassword = String(process.env.ORDERS_PASSWORD || "");
-  if (!expectedPassword) {
-    res.status(500).json({ ok: false, message: "Missing ORDERS_PASSWORD in Vercel." });
+  const ordersPassword = String(process.env.ORDERS_PASSWORD || "");
+  const helperPassword = String(process.env.HELPER_PASSWORD || "");
+  if (!ordersPassword && !helperPassword) {
+    res.status(500).json({ ok: false, message: "Missing delivery access password in Vercel." });
     return false;
   }
 
-  if (getOrdersPassword(req) !== expectedPassword) {
+  const suppliedPassword = getOrdersPassword(req);
+  if (suppliedPassword !== ordersPassword && suppliedPassword !== helperPassword) {
     res.status(401).json({ ok: false, message: "Clave de entregas incorrecta." });
     return false;
   }

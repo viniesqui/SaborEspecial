@@ -12,6 +12,23 @@ function validateMenu(menu) {
   }
 }
 
+function resolveMenuAccessPassword(req) {
+  return String(
+    req.body?.adminSecret ||
+    req.body?.accessPassword ||
+    ""
+  ).trim();
+}
+
+function getMenuAccessRole(password) {
+  const adminSecret = String(process.env.ADMIN_SECRET || "");
+  const helperPassword = String(process.env.HELPER_PASSWORD || "");
+
+  if (password && adminSecret && password === adminSecret) return "ADMIN";
+  if (password && helperPassword && password === helperPassword) return "HELPER";
+  return "";
+}
+
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   setCors(res);
@@ -21,19 +38,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const adminSecret = String(req.body?.adminSecret || "");
+    const accessPassword = resolveMenuAccessPassword(req);
     const validateOnly = Boolean(req.body?.validateOnly);
-    const expectedSecret = String(process.env.ADMIN_SECRET || "");
-    if (!expectedSecret) {
-      return res.status(500).json({ ok: false, message: "Missing ADMIN_SECRET in Vercel." });
+    const accessRole = getMenuAccessRole(accessPassword);
+
+    if (!process.env.ADMIN_SECRET && !process.env.HELPER_PASSWORD) {
+      return res.status(500).json({ ok: false, message: "Missing menu access password in Vercel." });
     }
 
-    if (adminSecret !== expectedSecret) {
-      return res.status(401).json({ ok: false, message: "Clave administrativa incorrecta." });
+    if (!accessRole) {
+      return res.status(401).json({ ok: false, message: "Clave incorrecta para menu." });
     }
 
     if (validateOnly) {
-      return res.status(200).json({ ok: true, message: "Acceso autorizado." });
+      return res.status(200).json({ ok: true, message: "Acceso autorizado.", role: accessRole });
     }
 
     const menu = req.body?.menu || {};

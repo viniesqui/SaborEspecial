@@ -2,13 +2,8 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
+  const SESSION_KEY = "ceep-role-session";
   const els = {
-    adminGate: document.getElementById("adminGate"),
-    adminContent: document.getElementById("adminContent"),
-    gateForm: document.getElementById("gateForm"),
-    gateSecret: document.getElementById("gateSecret"),
-    gateSubmitButton: document.getElementById("gateSubmitButton"),
-    gateFeedback: document.getElementById("gateFeedback"),
     menuForm: document.getElementById("menuForm"),
     adminSecretInput: document.getElementById("adminSecret"),
     menuSubmitButton: document.getElementById("menuSubmitButton"),
@@ -28,7 +23,8 @@
     adminOrdersPaid: document.getElementById("adminOrdersPaid"),
     adminOrdersPending: document.getElementById("adminOrdersPending"),
     adminOrdersList: document.getElementById("adminOrdersList"),
-    adminOrderRowTemplate: document.getElementById("adminOrderRowTemplate")
+    adminOrderRowTemplate: document.getElementById("adminOrderRowTemplate"),
+    adminLogoutButton: document.getElementById("adminLogoutButton")
   };
 
   let isSaving = false;
@@ -47,9 +43,13 @@
     els.menuFeedback.style.color = isError ? "#842f3d" : "#705d52";
   }
 
-  function setGateFeedback(message, isError) {
-    els.gateFeedback.textContent = message || "";
-    els.gateFeedback.style.color = isError ? "#842f3d" : "#705d52";
+  function getSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
   }
 
   function formatDateTime(value) {
@@ -123,23 +123,21 @@
     window.URL.revokeObjectURL(url);
   }
 
-  function unlockAdminArea(secret) {
-    adminSecret = secret;
-    els.adminGate.hidden = true;
-    els.adminContent.hidden = false;
-    els.adminSecretInput.value = secret;
+  function requireAdminSession() {
+    const session = getSession();
+    if (!session || session.role !== "ADMIN" || !session.password) {
+      window.location.replace("./index.html");
+      return false;
+    }
+
+    adminSecret = session.password;
+    els.adminSecretInput.value = session.password;
+    return true;
   }
 
-  async function validateAdminSecret(secret) {
-    const result = await fetchJson("/menu", {
-      method: "POST",
-      body: {
-        adminSecret: secret,
-        validateOnly: true
-      }
-    });
-
-    return result;
+  function logout() {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.replace("./index.html");
   }
 
   function renderSnapshot(snapshot) {
@@ -293,35 +291,6 @@
     }
   }
 
-  async function submitGate(event) {
-    event.preventDefault();
-    const secret = String(els.gateSecret.value || "").trim();
-
-    if (!secret) {
-      setGateFeedback("Ingrese la clave administrativa.", true);
-      return;
-    }
-
-    els.gateSubmitButton.disabled = true;
-    setGateFeedback("Verificando acceso...", false);
-
-    try {
-      const result = await validateAdminSecret(secret);
-      if (!result.ok) {
-        throw new Error(result.message || "No se pudo validar la clave.");
-      }
-
-      unlockAdminArea(secret);
-      setMenuFeedback("");
-      await refreshSnapshot();
-      await refreshAdminOrders();
-    } catch (error) {
-      setGateFeedback(error.message, true);
-    } finally {
-      els.gateSubmitButton.disabled = false;
-    }
-  }
-
   async function exportOrders() {
     if (!adminSecret) {
       setMenuFeedback("Primero ingrese con la clave administrativa.", true);
@@ -372,9 +341,16 @@
   }
 
   function start() {
-    els.gateForm.addEventListener("submit", submitGate);
+    if (!requireAdminSession()) return;
+
     els.menuForm.addEventListener("submit", submitMenu);
     els.exportOrdersButton.addEventListener("click", exportOrders);
+    if (els.adminLogoutButton) {
+      els.adminLogoutButton.addEventListener("click", logout);
+    }
+
+    refreshSnapshot();
+    refreshAdminOrders();
 
     window.setInterval(function () {
       if (!adminSecret) return;

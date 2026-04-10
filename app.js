@@ -2,6 +2,7 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
+  const SESSION_KEY = "ceep-role-session";
   const state = {
     snapshot: null,
     isSubmitting: false
@@ -28,8 +29,32 @@
     paymentMethodInput: document.getElementById("paymentMethod"),
     paymentOptions: Array.from(document.querySelectorAll(".payment-option")),
     refreshButton: document.getElementById("refreshButton"),
-    buyerRowTemplate: document.getElementById("buyerRowTemplate")
+    buyerRowTemplate: document.getElementById("buyerRowTemplate"),
+    logoutButton: document.getElementById("logoutButton")
   };
+
+  function getSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function requireCustomerSession() {
+    const session = getSession();
+    if (!session || session.role !== "CUSTOMER") {
+      window.location.replace("./index.html");
+      return false;
+    }
+    return true;
+  }
+
+  function logout() {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.replace("./index.html");
+  }
 
   function formatCurrency(amount) {
     return new Intl.NumberFormat("es-CR", {
@@ -271,6 +296,8 @@
   }
 
   function start() {
+    if (!requireCustomerSession()) return;
+
     const cached = loadCachedSnapshot();
     if (cached) {
       renderSnapshot(cached, true);
@@ -285,6 +312,9 @@
     els.refreshButton.addEventListener("click", function () {
       refreshSnapshot(true);
     });
+    if (els.logoutButton) {
+      els.logoutButton.addEventListener("click", logout);
+    }
 
     refreshSnapshot(false);
     window.setInterval(function () {

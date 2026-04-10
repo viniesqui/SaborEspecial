@@ -12,39 +12,14 @@
 <body>
   <div class="site-shell">
     <header class="site-header">
-      <a href="./index.html" class="site-brand">Almuerzos CEEP</a>
+      <a href="./admin.html" class="site-brand">Almuerzos CEEP</a>
       <nav class="site-nav" aria-label="Principal">
-        <a class="site-nav__link" href="./index.html">Inicio</a>
-        <a class="site-nav__link is-active" href="./admin.html">Administración</a>
-        <a class="site-nav__link" href="./deliveries.html">Entregas</a>
+        <button type="button" id="adminLogoutButton" class="site-nav__link site-nav__button">Salir</button>
       </nav>
     </header>
 
     <main class="admin-layout">
-      <section id="adminGate" class="card admin-gate">
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Acceso administrativo</p>
-            <h1>Ingrese la clave</h1>
-          </div>
-        </div>
-        <p class="admin-hero__text">
-          Esta página administra el menú del día. Ingrese la clave para continuar o vuelva al formulario público de solicitud.
-        </p>
-        <form id="gateForm" class="form">
-          <label>
-            Clave administrativa
-            <input id="gateSecret" name="gateSecret" type="password" maxlength="120" required autofocus>
-          </label>
-          <div class="gate-actions">
-            <button id="gateSubmitButton" type="submit" class="button">Ingresar</button>
-            <a class="button button--ghost" href="./index.html">Volver a inicio</a>
-          </div>
-          <p id="gateFeedback" class="feedback" aria-live="polite"></p>
-        </form>
-      </section>
-
-      <section id="adminContent" class="admin-content" hidden>
+      <section id="adminContent" class="admin-content">
       <section class="admin-hero">
         <p class="eyebrow">Administración</p>
         <h1>Actualizar menú del día</h1>
@@ -66,10 +41,7 @@
         </div>
 
         <form id="menuForm" class="form">
-          <label>
-            Clave administrativa
-            <input id="adminSecret" name="adminSecret" type="password" maxlength="120" required>
-          </label>
+          <input id="adminSecret" name="adminSecret" type="hidden">
 
           <label>
             Nombre del menú

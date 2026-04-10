@@ -2,13 +2,8 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
+  const SESSION_KEY = "ceep-role-session";
   const els = {
-    deliveriesGate: document.getElementById("deliveriesGate"),
-    deliveriesContent: document.getElementById("deliveriesContent"),
-    deliveriesGateForm: document.getElementById("deliveriesGateForm"),
-    deliveriesSecret: document.getElementById("deliveriesSecret"),
-    deliveriesGateSubmitButton: document.getElementById("deliveriesGateSubmitButton"),
-    deliveriesGateFeedback: document.getElementById("deliveriesGateFeedback"),
     deliveriesUpdatedAt: document.getElementById("deliveriesUpdatedAt"),
     deliveriesTotalOrders: document.getElementById("deliveriesTotalOrders"),
     deliveriesPendingPaymentCount: document.getElementById("deliveriesPendingPaymentCount"),
@@ -17,14 +12,35 @@
     deliveriesPendingOrders: document.getElementById("deliveriesPendingOrders"),
     deliveriesDeliveredOrders: document.getElementById("deliveriesDeliveredOrders"),
     deliveriesList: document.getElementById("deliveriesList"),
-    deliveryRowTemplate: document.getElementById("deliveryRowTemplate")
+    deliveryRowTemplate: document.getElementById("deliveryRowTemplate"),
+    deliveriesLogoutButton: document.getElementById("deliveriesLogoutButton")
   };
 
   let ordersPassword = "";
 
-  function setGateFeedback(message, isError) {
-    els.deliveriesGateFeedback.textContent = message || "";
-    els.deliveriesGateFeedback.style.color = isError ? "#842f3d" : "#705d52";
+  function getSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function requireOrdersSession() {
+    const session = getSession();
+    if (!session || session.role !== "ORDERS" || !session.password) {
+      window.location.replace("./index.html");
+      return false;
+    }
+
+    ordersPassword = session.password;
+    return true;
+  }
+
+  function logout() {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.replace("./index.html");
   }
 
   function getPaymentClass(paymentStatus) {
@@ -163,38 +179,18 @@
     }
   }
 
-  async function submitGate(event) {
-    event.preventDefault();
-    const password = String(els.deliveriesSecret.value || "").trim();
-
-    if (!password) {
-      setGateFeedback("Ingrese la clave de entregas.", true);
-      return;
-    }
-
-    els.deliveriesGateSubmitButton.disabled = true;
-    setGateFeedback("Verificando acceso...", false);
-
-    try {
-      ordersPassword = password;
-      const snapshot = await fetchJson("/deliveries");
-      els.deliveriesGate.hidden = true;
-      els.deliveriesContent.hidden = false;
-      setGateFeedback("");
-      renderSnapshot(snapshot);
-    } catch (error) {
-      ordersPassword = "";
-      setGateFeedback(error.message, true);
-    } finally {
-      els.deliveriesGateSubmitButton.disabled = false;
-    }
-  }
-
   function start() {
-    els.deliveriesGateForm.addEventListener("submit", submitGate);
+    if (!requireOrdersSession()) return;
+    if (els.deliveriesLogoutButton) {
+      els.deliveriesLogoutButton.addEventListener("click", logout);
+    }
+
+    refreshSnapshot().catch(function () {
+      return null;
+    });
 
     window.setInterval(function () {
-      if (!ordersPassword || els.deliveriesContent.hidden) return;
+      if (!ordersPassword) return;
       refreshSnapshot().catch(function () {
         return null;
       });
