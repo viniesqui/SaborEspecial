@@ -373,12 +373,15 @@ textarea {
 }
 
 .delivery-action {
+  width: 100%;
+  min-height: 3.5rem;
   padding: 0.65rem 0.9rem;
   border-radius: 999px;
   border: 1px solid rgba(131, 47, 61, 0.2);
   background: #fffdf9;
   color: var(--primary-dark);
   font-weight: 700;
+  text-align: center;
 }
 
 .delivery-action.is-selected {
@@ -466,6 +469,11 @@ textarea {
   display: grid;
   gap: 0.45rem;
   align-items: center;
+  justify-items: center;
+}
+
+.delivery-table__cell:first-child {
+  justify-items: start;
 }
 
 .delivery-summary-grid {
@@ -503,7 +511,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 220px;
+  width: 100%;
+  min-height: 3.5rem;
   padding: 0.72rem 1.1rem;
   font-weight: 800;
   color: #fff;
@@ -535,6 +544,22 @@ textarea {
 }
 
 .delivery-status-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.delivery-order-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.72rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(76, 47, 34, 0.18);
+  background: #fffdf9;
+  color: var(--text);
   font-size: 0.98rem;
   font-weight: 800;
   text-align: center;
@@ -834,6 +859,7 @@ textarea {
   .admin-order-status,
   .payment-toggle,
   .delivery-payment-status,
+  .delivery-order-status-pill,
   .delivery-action {
     width: 100%;
   }
