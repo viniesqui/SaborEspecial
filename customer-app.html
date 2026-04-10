@@ -44,7 +44,7 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card customer-order-card">
       <div class="section-title">
         <div>
           <p class="eyebrow">Solicitud</p>
@@ -76,44 +76,16 @@
       </form>
     </section>
 
-    <section class="card card--split">
-      <div>
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Operación</p>
-            <h2>Pagos en tiempo real</h2>
-          </div>
+    <section class="card delivery-table-card customer-tracking-card">
+      <div class="delivery-table customer-delivery-table">
+        <div class="delivery-table__head customer-delivery-table__head">
+          <span>PEDIDO</span>
+          <span>SOLICITUD</span>
+          <span>ESTADO DEL PAGO</span>
+          <span>ENTREGA</span>
         </div>
-        <div class="stats">
-          <article class="stat">
-            <span>Vendidos</span>
-            <strong id="soldCount">0</strong>
-          </article>
-          <article class="stat">
-            <span>SINPE</span>
-            <strong id="sinpeCount">0</strong>
-          </article>
-          <article class="stat">
-            <span>Efectivo</span>
-            <strong id="cashCount">0</strong>
-          </article>
-          <article class="stat">
-            <span>Total</span>
-            <strong id="totalAmount">CRC 0</strong>
-          </article>
-        </div>
-      </div>
-
-      <div>
-        <div class="section-title">
-          <div>
-            <p class="eyebrow">Cocina</p>
-            <h2>Lista de compras</h2>
-          </div>
-          <button id="refreshButton" type="button" class="button button--ghost">Actualizar</button>
-        </div>
-        <div id="buyersList" class="buyers-list">
-          <p class="empty-state">No hay compras registradas todavía.</p>
+        <div id="buyersList" class="delivery-table__body">
+          <div class="delivery-table__empty">No hay compras registradas todavía.</div>
         </div>
       </div>
     </section>
@@ -125,12 +97,23 @@
   </div>
 
   <template id="buyerRowTemplate">
-    <article class="buyer-row">
-      <div>
-        <strong class="buyer-name"></strong>
-        <p class="buyer-meta"></p>
+    <article class="delivery-table__row customer-delivery-table__row">
+      <div class="delivery-table__cell delivery-table__cell--start">
+        <strong class="buyer-name delivery-name-card"></strong>
+        <p class="buyer-meta delivery-order-meta"></p>
       </div>
-      <span class="badge buyer-payment"></span>
+      <div class="delivery-table__cell">
+        <span class="delivery-order-status-pill customer-order-status"></span>
+        <p class="delivery-status-time customer-created-at"></p>
+      </div>
+      <div class="delivery-table__cell">
+        <span class="delivery-payment-status customer-payment-status"></span>
+        <p class="delivery-status-time customer-payment-confirmed-at"></p>
+      </div>
+      <div class="delivery-table__cell">
+        <span class="delivery-action customer-delivery-badge"></span>
+        <p class="delivery-status-time customer-delivered-at"></p>
+      </div>
     </article>
   </template>
 

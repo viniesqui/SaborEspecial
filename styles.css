@@ -146,6 +146,11 @@ body {
   grid-column: 1 / -1;
 }
 
+.customer-order-card,
+.customer-tracking-card {
+  grid-column: 1 / -1;
+}
+
 .card--split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -496,6 +501,11 @@ textarea {
   grid-template-rows: auto auto;
 }
 
+.delivery-table__cell--start {
+  justify-items: start;
+  grid-template-rows: auto auto;
+}
+
 .delivery-summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -627,6 +637,24 @@ textarea {
 .helper-layout {
   display: grid;
   gap: 1rem;
+}
+
+.customer-tracking-card {
+  padding: 0.9rem 1rem;
+}
+
+.customer-delivery-table {
+  width: 100%;
+}
+
+.customer-delivery-table__head,
+.customer-delivery-table__row {
+  grid-template-columns: minmax(220px, 1.15fr) minmax(170px, 0.78fr) minmax(250px, 1fr) minmax(210px, 0.9fr);
+}
+
+.customer-delivery-badge,
+.customer-payment-status {
+  width: min(100%, 18rem);
 }
 
 .helper-deliveries-card {

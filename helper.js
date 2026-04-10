@@ -118,6 +118,13 @@
       : "delivery-payment-status delivery-payment-status--pending";
   }
 
+  function getPaymentLabel(paymentStatus) {
+    const normalized = String(paymentStatus || "").toUpperCase();
+    if (normalized === "PAGADO") return "PAGADO";
+    if (normalized === "PENDIENTE_DE_PAGO" || normalized === "POR_VERIFICAR") return "PENDIENTE DE PAGO";
+    return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
+  }
+
   function renderOrders(orders) {
     els.helperDeliveriesList.innerHTML = "";
 
@@ -135,7 +142,7 @@
       node.querySelector(".helper-created-at").textContent = order.createdAtLabel || "";
 
       const paymentNode = node.querySelector(".helper-payment-status");
-      paymentNode.textContent = order.paymentStatus || "PENDIENTE DE PAGO";
+      paymentNode.textContent = getPaymentLabel(order.paymentStatus);
       paymentNode.className = getPaymentClass(order.paymentStatus);
 
       node.querySelector(".helper-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";

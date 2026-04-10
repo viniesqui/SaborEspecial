@@ -49,6 +49,13 @@
       : "delivery-payment-status delivery-payment-status--pending";
   }
 
+  function getPaymentLabel(paymentStatus) {
+    const normalized = String(paymentStatus || "").toUpperCase();
+    if (normalized === "PAGADO") return "PAGADO";
+    if (normalized === "PENDIENTE_DE_PAGO" || normalized === "POR_VERIFICAR") return "PENDIENTE DE PAGO";
+    return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
+  }
+
   function formatDateTime(value) {
     if (!value) return "Sin datos recientes";
     const date = new Date(value);
@@ -132,7 +139,7 @@
       node.querySelector(".delivery-order-status").textContent = order.orderStatus || "SOLICITADO";
       node.querySelector(".delivery-created-at").textContent = order.createdAtLabel || "";
       const paymentNode = node.querySelector(".delivery-payment-status");
-      paymentNode.textContent = order.paymentStatus || "PENDIENTE DE PAGO";
+      paymentNode.textContent = getPaymentLabel(order.paymentStatus);
       paymentNode.className = getPaymentClass(order.paymentStatus);
       node.querySelector(".delivery-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
       node.querySelector(".delivery-delivered-at").textContent = order.deliveredAtLabel || "";

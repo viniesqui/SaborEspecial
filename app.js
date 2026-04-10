@@ -14,17 +14,12 @@
     menuPrice: document.getElementById("menuPrice"),
     dailyMessage: document.getElementById("dailyMessage"),
     availableCount: document.getElementById("availableCount"),
-    soldCount: document.getElementById("soldCount"),
-    sinpeCount: document.getElementById("sinpeCount"),
-    cashCount: document.getElementById("cashCount"),
-    totalAmount: document.getElementById("totalAmount"),
     buyersList: document.getElementById("buyersList"),
     orderForm: document.getElementById("orderForm"),
     submitButton: document.getElementById("submitButton"),
     formFeedback: document.getElementById("formFeedback"),
     paymentMethodInput: document.getElementById("paymentMethod"),
     paymentOptions: Array.from(document.querySelectorAll(".payment-option")),
-    refreshButton: document.getElementById("refreshButton"),
     buyerRowTemplate: document.getElementById("buyerRowTemplate"),
     logoutButton: document.getElementById("logoutButton")
   };
@@ -82,24 +77,60 @@
     }
   }
 
+  function getPaymentClass(paymentStatus) {
+    return String(paymentStatus || "").toUpperCase() === "PAGADO"
+      ? "delivery-payment-status delivery-payment-status--paid customer-payment-status"
+      : "delivery-payment-status delivery-payment-status--pending customer-payment-status";
+  }
+
+  function getPaymentLabel(paymentStatus) {
+    const normalized = String(paymentStatus || "").toUpperCase();
+    if (normalized === "PAGADO") return "PAGADO";
+    if (normalized === "PENDIENTE_DE_PAGO" || normalized === "POR_VERIFICAR") return "PENDIENTE DE PAGO";
+    return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
+  }
+
+  function getDeliveryBadge(deliveryStatus) {
+    return String(deliveryStatus || "").toUpperCase() === "ENTREGADO"
+      ? {
+          text: "Entregado",
+          className: "delivery-action is-selected customer-delivery-badge"
+        }
+      : {
+          text: "Pendiente de entrega",
+          className: "delivery-action customer-delivery-badge"
+        };
+  }
+
   function renderBuyers(orders) {
     els.buyersList.innerHTML = "";
 
     if (!orders || orders.length === 0) {
-      els.buyersList.innerHTML = '<p class="empty-state">No hay compras registradas todavía.</p>';
+      els.buyersList.innerHTML = '<div class="delivery-table__empty">No hay compras registradas todavía.</div>';
       return;
     }
 
     const fragment = document.createDocumentFragment();
     orders.forEach((order) => {
       const node = els.buyerRowTemplate.content.cloneNode(true);
+      const paymentLabel = getPaymentLabel(order.paymentStatus);
       node.querySelector(".buyer-name").textContent = order.buyerName;
       node.querySelector(".buyer-meta").textContent =
-        [order.paymentMethod, order.paymentStatus, order.timestampLabel].filter(Boolean).join(" | ");
+        [order.paymentMethod, paymentLabel, order.timestampLabel].filter(Boolean).join(" | ");
+      node.querySelector(".customer-order-status").textContent = order.orderStatus || "SOLICITADO";
+      node.querySelector(".customer-created-at").textContent = order.createdAtLabel || order.timestampLabel || "";
 
-      const badge = node.querySelector(".buyer-payment");
-      badge.textContent = order.paymentMethod;
-      badge.className = order.paymentMethod === "SINPE" ? "badge badge--success buyer-payment" : "badge badge--warning buyer-payment";
+      const paymentNode = node.querySelector(".customer-payment-status");
+      paymentNode.textContent = paymentLabel;
+      paymentNode.className = getPaymentClass(order.paymentStatus);
+      node.querySelector(".customer-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
+
+      const delivery = getDeliveryBadge(order.deliveryStatus);
+      const deliveryNode = node.querySelector(".customer-delivery-badge");
+      deliveryNode.textContent = delivery.text;
+      deliveryNode.className = delivery.className;
+      node.querySelector(".customer-delivered-at").textContent = order.deliveredAtLabel || "";
+
       fragment.appendChild(node);
     });
 
@@ -116,11 +147,6 @@
     els.dailyMessage.textContent = snapshot.message || "Ofrecemos hasta 15 almuerzos diarios, según la asistencia de los niños y la disponibilidad autorizada por el MEP.";
 
     els.availableCount.textContent = String(snapshot.availableMeals || 0);
-    els.soldCount.textContent = String(snapshot.soldMeals || 0);
-    els.sinpeCount.textContent = String(snapshot.sinpeCount || 0);
-    els.cashCount.textContent = String(snapshot.cashCount || 0);
-    els.totalAmount.textContent = formatCurrency(snapshot.totalAmount || 0);
-
     renderBuyers(snapshot.orders || []);
 
     const canBuy = Boolean(snapshot.isSalesOpen) && Number(snapshot.availableMeals || 0) > 0;
@@ -261,9 +287,6 @@
       button.addEventListener("click", function () {
         selectPaymentMethod(button.dataset.paymentMethod);
       });
-    });
-    els.refreshButton.addEventListener("click", function () {
-      refreshSnapshot(true);
     });
     if (els.logoutButton) {
       els.logoutButton.addEventListener("click", logout);
