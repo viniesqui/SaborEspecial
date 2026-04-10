@@ -45,6 +45,8 @@ Si cuando dijo "Google Pages" se referia a `GitHub Pages`, esta estructura ya fu
 
 Si quiere usar MongoDB Atlas, mantenga el frontend en GitHub Pages y despliegue el backend en Vercel.
 
+La zona horaria operativa del sistema es `America/Costa_Rica`.
+
 ### Variables de entorno en Vercel
 
 - `MONGODB_URI`

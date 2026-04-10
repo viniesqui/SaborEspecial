@@ -1,5 +1,5 @@
 import { getDb } from "../lib/mongodb.js";
-import { getDayKey } from "../lib/dashboard.js";
+import { getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
 import { ObjectId } from "mongodb";
 
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
       const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
       const menuDoc = await db.collection("menus").findOne({ dayKey, active: true });
       const orders = await db.collection("orders")
-        .find({ dayKey, recordStatus: { $ne: "CANCELADO" } })
+        .find(getTodayOrdersQuery(dayKey))
         .sort({ createdAt: 1 })
         .toArray();
 
@@ -154,7 +154,7 @@ export default async function handler(req, res) {
       const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
       const menuDoc = await db.collection("menus").findOne({ dayKey, active: true });
       const orders = await db.collection("orders")
-        .find({ dayKey, recordStatus: { $ne: "CANCELADO" } })
+        .find(getTodayOrdersQuery(dayKey))
         .sort({ createdAt: 1 })
         .toArray();
 
