@@ -19,7 +19,7 @@
 
 html {
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at top, #fff9f0 0%, var(--bg) 50%, #eddccf 100%);
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -714,8 +714,9 @@ textarea {
 }
 
 .admin-card--summary {
-  position: sticky;
-  top: 1rem;
+  position: static;
+  top: auto;
+  align-self: start;
 }
 
 .admin-orders-card {

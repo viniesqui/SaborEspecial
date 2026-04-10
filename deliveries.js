@@ -6,7 +6,6 @@
   const els = {
     deliveriesUpdatedAt: document.getElementById("deliveriesUpdatedAt"),
     deliveriesTotalOrders: document.getElementById("deliveriesTotalOrders"),
-    deliveriesPendingPaymentCount: document.getElementById("deliveriesPendingPaymentCount"),
     deliveriesPaidOrders: document.getElementById("deliveriesPaidOrders"),
     deliveriesPaidPendingOrders: document.getElementById("deliveriesPaidPendingOrders"),
     deliveriesPendingOrders: document.getElementById("deliveriesPendingOrders"),
@@ -161,7 +160,6 @@
   function renderSnapshot(snapshot) {
     els.deliveriesUpdatedAt.textContent = formatDateTime(snapshot.updatedAt);
     els.deliveriesTotalOrders.textContent = String(snapshot.totalOrders || 0);
-    els.deliveriesPendingPaymentCount.textContent = String(snapshot.pendingPaymentCount || 0);
     els.deliveriesPaidOrders.textContent = String(snapshot.paidOrders || 0);
     els.deliveriesPaidPendingOrders.textContent = String(snapshot.paidPendingDeliveryCount || 0);
     els.deliveriesPendingOrders.textContent = String(snapshot.pendingDeliveries || 0);
