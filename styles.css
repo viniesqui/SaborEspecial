@@ -30,6 +30,8 @@ body {
 
 .site-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .site-header {
@@ -40,6 +42,16 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+}
+
+.site-footer {
+  margin-top: auto;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  padding: 15px 10px;
+  border-top: 1px solid #eee;
+  background-color: #fafafa;
 }
 
 .site-brand {
@@ -631,6 +643,7 @@ textarea {
 .admin-hero {
   grid-column: 1 / -1;
   padding: 1rem 0 0.25rem;
+  text-align: center;
 }
 
 .admin-gate {
@@ -679,6 +692,11 @@ textarea {
 
 .admin-orders-card {
   grid-column: 1 / -1;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding-inline: 0;
+  padding-top: 0;
 }
 
 .admin-orders-summary {
@@ -692,6 +710,8 @@ textarea {
 .admin-orders-table {
   display: grid;
   gap: 0.2rem;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .admin-orders-table__head,
