@@ -10,6 +10,7 @@
     gateSubmitButton: document.getElementById("gateSubmitButton"),
     gateFeedback: document.getElementById("gateFeedback"),
     menuForm: document.getElementById("menuForm"),
+    adminSecretInput: document.getElementById("adminSecret"),
     menuSubmitButton: document.getElementById("menuSubmitButton"),
     menuFeedback: document.getElementById("menuFeedback"),
     menuTitleInput: document.getElementById("menuTitleInput"),
@@ -22,7 +23,12 @@
     currentMenuPrice: document.getElementById("currentMenuPrice"),
     currentAvailableMeals: document.getElementById("currentAvailableMeals"),
     currentSalesWindow: document.getElementById("currentSalesWindow"),
-    currentDeliveryWindow: document.getElementById("currentDeliveryWindow")
+    currentDeliveryWindow: document.getElementById("currentDeliveryWindow"),
+    adminOrdersTotal: document.getElementById("adminOrdersTotal"),
+    adminOrdersPaid: document.getElementById("adminOrdersPaid"),
+    adminOrdersPending: document.getElementById("adminOrdersPending"),
+    adminOrdersList: document.getElementById("adminOrdersList"),
+    adminOrderRowTemplate: document.getElementById("adminOrderRowTemplate")
   };
 
   let isSaving = false;
@@ -121,6 +127,7 @@
     adminSecret = secret;
     els.adminGate.hidden = true;
     els.adminContent.hidden = false;
+    els.adminSecretInput.value = secret;
   }
 
   async function validateAdminSecret(secret) {
@@ -156,6 +163,76 @@
     try {
       const snapshot = await fetchJson("/dashboard");
       renderSnapshot(snapshot);
+    } catch (error) {
+      setMenuFeedback(error.message, true);
+    }
+  }
+
+  function getMethodLabel(method) {
+    return String(method || "").toUpperCase() === "SINPE" ? "SINPE" : "EFECTIVO";
+  }
+
+  function getPaymentStatusLabel(status) {
+    return String(status || "").toUpperCase() === "PAGADO" ? "PAGADO" : "PENDIENTE DE PAGO";
+  }
+
+  function getPaymentStatusClass(status) {
+    return String(status || "").toUpperCase() === "PAGADO"
+      ? "admin-order-status admin-order-status--paid"
+      : "admin-order-status admin-order-status--pending";
+  }
+
+  function renderAdminOrders(snapshot) {
+    els.adminOrdersTotal.textContent = String(snapshot.totalOrders || 0);
+    els.adminOrdersPaid.textContent = String(snapshot.paidCount || 0);
+    els.adminOrdersPending.textContent = String(snapshot.pendingPaymentCount || 0);
+    els.adminOrdersList.innerHTML = "";
+
+    if (!snapshot.orders || snapshot.orders.length === 0) {
+      els.adminOrdersList.innerHTML = '<div class="admin-orders-table__empty">No hay pedidos registrados hoy.</div>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    snapshot.orders.forEach(function (order) {
+      const node = els.adminOrderRowTemplate.content.cloneNode(true);
+      node.querySelector(".admin-order-name").textContent = order.buyerName;
+      node.querySelector(".admin-order-meta").textContent = [order.buyerPhone, order.paymentReference].filter(Boolean).join(" | ") || "Sin referencia";
+      node.querySelector(".admin-order-date").textContent = order.createdAtLabel || "-";
+      node.querySelector(".admin-order-method").textContent = getMethodLabel(order.paymentMethod);
+
+      const statusNode = node.querySelector(".admin-order-status");
+      statusNode.textContent = getPaymentStatusLabel(order.paymentStatus);
+      statusNode.className = getPaymentStatusClass(order.paymentStatus);
+
+      node.querySelector(".admin-order-confirmed-at").textContent = order.paymentConfirmedAtLabel || "Pendiente";
+
+      node.querySelectorAll(".payment-toggle").forEach(function (button) {
+        const isSelected = button.dataset.paymentStatus === order.paymentStatus;
+        button.classList.toggle("is-selected", isSelected);
+        button.addEventListener("click", function () {
+          updatePaymentStatus(order.id, button.dataset.paymentStatus);
+        });
+      });
+
+      fragment.appendChild(node);
+    });
+
+    els.adminOrdersList.appendChild(fragment);
+  }
+
+  async function refreshAdminOrders() {
+    if (!adminSecret) return;
+
+    try {
+      const snapshot = await fetchJson("/admin-orders", {
+        method: "POST",
+        body: {
+          adminSecret,
+          action: "list"
+        }
+      });
+      renderAdminOrders(snapshot);
     } catch (error) {
       setMenuFeedback(error.message, true);
     }
@@ -207,6 +284,7 @@
       } else {
         await refreshSnapshot();
       }
+      await refreshAdminOrders();
     } catch (error) {
       setMenuFeedback(error.message, true);
     } finally {
@@ -236,6 +314,7 @@
       unlockAdminArea(secret);
       setMenuFeedback("");
       await refreshSnapshot();
+      await refreshAdminOrders();
     } catch (error) {
       setGateFeedback(error.message, true);
     } finally {
@@ -269,10 +348,39 @@
     }
   }
 
+  async function updatePaymentStatus(orderId, paymentStatus) {
+    if (!adminSecret) {
+      setMenuFeedback("Primero ingrese con la clave administrativa.", true);
+      return;
+    }
+
+    try {
+      const snapshot = await fetchJson("/admin-orders", {
+        method: "POST",
+        body: {
+          adminSecret,
+          action: "updatePaymentStatus",
+          orderId,
+          paymentStatus
+        }
+      });
+      renderAdminOrders(snapshot);
+      setMenuFeedback("Estado de pago actualizado.", false);
+    } catch (error) {
+      setMenuFeedback(error.message, true);
+    }
+  }
+
   function start() {
     els.gateForm.addEventListener("submit", submitGate);
     els.menuForm.addEventListener("submit", submitMenu);
     els.exportOrdersButton.addEventListener("click", exportOrders);
+
+    window.setInterval(function () {
+      if (!adminSecret) return;
+      refreshSnapshot();
+      refreshAdminOrders();
+    }, Number(config.refreshIntervalMs || 30000));
   }
 
   start();

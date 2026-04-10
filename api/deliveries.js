@@ -55,17 +55,23 @@ function getPaymentStatusLabel(paymentStatus) {
 
 function buildDeliveriesSnapshot(settingsDoc, menuDoc, orders) {
   const totalOrders = orders.length;
+  const paidOrders = orders.filter((item) => getPaymentStatusLabel(item.paymentStatus) === "PAGADO").length;
+  const pendingPaymentCount = Math.max(totalOrders - paidOrders, 0);
   const deliveredOrders = orders.filter((item) => item.deliveryStatus === "ENTREGADO").length;
   const pendingDeliveries = Math.max(totalOrders - deliveredOrders, 0);
-  const totalAmount = orders.reduce((sum, item) => sum + Number(item.menuPrice || 0), 0);
+  const paidPendingDeliveryCount = orders.filter((item) =>
+    getPaymentStatusLabel(item.paymentStatus) === "PAGADO" && item.deliveryStatus !== "ENTREGADO"
+  ).length;
 
   return {
     ok: true,
     updatedAt: new Date().toISOString(),
     totalOrders,
+    pendingPaymentCount,
+    paidOrders,
+    paidPendingDeliveryCount,
     pendingDeliveries,
     deliveredOrders,
-    totalAmount,
     salesWindow: `${settingsDoc?.salesStart || "10:00"} - ${settingsDoc?.salesEnd || "12:00"}`,
     deliveryWindow: settingsDoc?.deliveryWindow || "12:00 - 12:30",
     menu: {
@@ -135,7 +141,7 @@ export default async function handler(req, res) {
       const orderObjectId = new ObjectId(orderId);
 
       await db.collection("orders").updateOne(
-        { _id: orderObjectId, dayKey },
+        { _id: orderObjectId, ...getTodayOrdersQuery(dayKey) },
         {
           $set: {
             deliveryStatus,

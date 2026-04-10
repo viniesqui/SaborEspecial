@@ -10,28 +10,18 @@
     deliveriesGateSubmitButton: document.getElementById("deliveriesGateSubmitButton"),
     deliveriesGateFeedback: document.getElementById("deliveriesGateFeedback"),
     deliveriesUpdatedAt: document.getElementById("deliveriesUpdatedAt"),
-    deliveriesMenuTitle: document.getElementById("deliveriesMenuTitle"),
-    deliveriesMenuPrice: document.getElementById("deliveriesMenuPrice"),
-    deliveriesSalesWindow: document.getElementById("deliveriesSalesWindow"),
-    deliveriesDeliveryWindow: document.getElementById("deliveriesDeliveryWindow"),
     deliveriesTotalOrders: document.getElementById("deliveriesTotalOrders"),
+    deliveriesPendingPaymentCount: document.getElementById("deliveriesPendingPaymentCount"),
+    deliveriesPaidOrders: document.getElementById("deliveriesPaidOrders"),
+    deliveriesPaidPendingOrders: document.getElementById("deliveriesPaidPendingOrders"),
     deliveriesPendingOrders: document.getElementById("deliveriesPendingOrders"),
     deliveriesDeliveredOrders: document.getElementById("deliveriesDeliveredOrders"),
-    deliveriesTotalAmount: document.getElementById("deliveriesTotalAmount"),
     deliveriesList: document.getElementById("deliveriesList"),
     deliveriesRefreshButton: document.getElementById("deliveriesRefreshButton"),
     deliveryRowTemplate: document.getElementById("deliveryRowTemplate")
   };
 
   let ordersPassword = "";
-
-  function formatCurrency(amount) {
-    return new Intl.NumberFormat("es-CR", {
-      style: "currency",
-      currency: "CRC",
-      maximumFractionDigits: 0
-    }).format(Number(amount || 0));
-  }
 
   function setGateFeedback(message, isError) {
     els.deliveriesGateFeedback.textContent = message || "";
@@ -99,6 +89,7 @@
     orders.forEach(function (order) {
       const node = els.deliveryRowTemplate.content.cloneNode(true);
       node.querySelector(".buyer-name").textContent = order.buyerName;
+      node.querySelector(".delivery-order-meta").textContent = [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
       node.querySelector(".delivery-order-status").textContent = order.orderStatus || "SOLICITADO";
       node.querySelector(".delivery-created-at").textContent = order.createdAtLabel || "";
       const paymentNode = node.querySelector(".delivery-payment-status");
@@ -122,16 +113,13 @@
   }
 
   function renderSnapshot(snapshot) {
-    const menu = snapshot.menu || {};
     els.deliveriesUpdatedAt.textContent = formatDateTime(snapshot.updatedAt);
-    els.deliveriesMenuTitle.textContent = menu.title || "Menú no configurado";
-    els.deliveriesMenuPrice.textContent = formatCurrency(menu.price);
-    els.deliveriesSalesWindow.textContent = snapshot.salesWindow || "-";
-    els.deliveriesDeliveryWindow.textContent = snapshot.deliveryWindow || "-";
     els.deliveriesTotalOrders.textContent = String(snapshot.totalOrders || 0);
+    els.deliveriesPendingPaymentCount.textContent = String(snapshot.pendingPaymentCount || 0);
+    els.deliveriesPaidOrders.textContent = String(snapshot.paidOrders || 0);
+    els.deliveriesPaidPendingOrders.textContent = String(snapshot.paidPendingDeliveryCount || 0);
     els.deliveriesPendingOrders.textContent = String(snapshot.pendingDeliveries || 0);
     els.deliveriesDeliveredOrders.textContent = String(snapshot.deliveredOrders || 0);
-    els.deliveriesTotalAmount.textContent = formatCurrency(snapshot.totalAmount || 0);
     renderOrders(snapshot.orders || []);
   }
 
@@ -186,6 +174,13 @@
         setGateFeedback(error.message, true);
       });
     });
+
+    window.setInterval(function () {
+      if (!ordersPassword || els.deliveriesContent.hidden) return;
+      refreshSnapshot().catch(function () {
+        return null;
+      });
+    }, Number(config.refreshIntervalMs || 30000));
   }
 
   start();

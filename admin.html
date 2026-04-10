@@ -118,9 +118,63 @@
           </div>
         </div>
       </section>
+
+      <section class="card admin-card admin-orders-card">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Pedidos del día</p>
+            <h2>Control de pagos</h2>
+          </div>
+          <div class="admin-orders-summary">
+            <span>Total: <strong id="adminOrdersTotal">0</strong></span>
+            <span>Pagados: <strong id="adminOrdersPaid">0</strong></span>
+            <span>Pendientes: <strong id="adminOrdersPending">0</strong></span>
+          </div>
+        </div>
+        <div class="admin-orders-table">
+          <div class="admin-orders-table__head">
+            <span>Cliente</span>
+            <span>Solicitud</span>
+            <span>Método</span>
+            <span>Estado del pago</span>
+            <span>Confirmado</span>
+            <span>Acciones</span>
+          </div>
+          <div id="adminOrdersList" class="admin-orders-table__body">
+            <div class="admin-orders-table__empty">No hay pedidos registrados hoy.</div>
+          </div>
+        </div>
+      </section>
       </section>
     </main>
   </div>
+
+  <template id="adminOrderRowTemplate">
+    <article class="admin-orders-table__row">
+      <div class="admin-orders-table__cell">
+        <strong class="admin-order-name"></strong>
+        <p class="admin-order-meta"></p>
+      </div>
+      <div class="admin-orders-table__cell">
+        <p class="admin-order-date"></p>
+      </div>
+      <div class="admin-orders-table__cell">
+        <span class="admin-order-method"></span>
+      </div>
+      <div class="admin-orders-table__cell">
+        <span class="admin-order-status"></span>
+      </div>
+      <div class="admin-orders-table__cell">
+        <p class="admin-order-confirmed-at"></p>
+      </div>
+      <div class="admin-orders-table__cell">
+        <div class="admin-order-actions">
+          <button type="button" class="payment-toggle" data-payment-status="PENDIENTE_DE_PAGO">Pendiente</button>
+          <button type="button" class="payment-toggle" data-payment-status="PAGADO">Pagado</button>
+        </div>
+      </div>
+    </article>
+  </template>
 
   <script src="./config.js"></script>
   <script src="./admin.js" defer></script>
