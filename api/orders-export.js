@@ -1,22 +1,6 @@
 import { getDb } from "../lib/mongodb.js";
 import { handleOptions, setCors } from "../lib/http.js";
-
-function validateAdminSecret(req, res) {
-  const adminSecret = String(req.body?.adminSecret || "");
-  const expectedSecret = String(process.env.ADMIN_SECRET || "");
-
-  if (!expectedSecret) {
-    res.status(500).json({ ok: false, message: "Missing ADMIN_SECRET in Vercel." });
-    return false;
-  }
-
-  if (adminSecret !== expectedSecret) {
-    res.status(401).json({ ok: false, message: "Clave administrativa incorrecta." });
-    return false;
-  }
-
-  return true;
-}
+import { requireAuth } from "../lib/auth.js";
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
@@ -84,9 +68,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
-  if (!validateAdminSecret(req, res)) return;
-
   try {
+    await requireAuth(req, ["ADMIN"]);
     const db = await getDb();
     const orders = await db.collection("orders")
       .find({})
@@ -98,6 +81,9 @@ export default async function handler(req, res) {
     res.setHeader("Content-Disposition", "attachment; filename=\"orders-export.csv\"");
     return res.status(200).send(csv);
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ ok: false, message: error.message });
+    }
     return res.status(500).json({
       ok: false,
       message: error.message || "No fue posible exportar los pedidos."

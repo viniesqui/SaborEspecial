@@ -1,6 +1,7 @@
 import { getDb } from "../lib/mongodb.js";
 import { buildDashboardSnapshot, getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
+import { requireAuth } from "../lib/auth.js";
 
 function validateMenu(menu) {
   if (!menu.title || !menu.description) {
@@ -12,23 +13,6 @@ function validateMenu(menu) {
   }
 }
 
-function resolveMenuAccessPassword(req) {
-  return String(
-    req.body?.adminSecret ||
-    req.body?.accessPassword ||
-    ""
-  ).trim();
-}
-
-function getMenuAccessRole(password) {
-  const adminSecret = String(process.env.ADMIN_SECRET || "");
-  const helperPassword = String(process.env.HELPER_PASSWORD || "");
-
-  if (password && adminSecret && password === adminSecret) return "ADMIN";
-  if (password && helperPassword && password === helperPassword) return "HELPER";
-  return "";
-}
-
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   setCors(res);
@@ -38,20 +22,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const accessPassword = resolveMenuAccessPassword(req);
+    const { role } = await requireAuth(req, ["ADMIN", "HELPER"]);
+
     const validateOnly = Boolean(req.body?.validateOnly);
-    const accessRole = getMenuAccessRole(accessPassword);
-
-    if (!process.env.ADMIN_SECRET && !process.env.HELPER_PASSWORD) {
-      return res.status(500).json({ ok: false, message: "Missing menu access password in Vercel." });
-    }
-
-    if (!accessRole) {
-      return res.status(401).json({ ok: false, message: "Clave incorrecta para menu." });
-    }
-
     if (validateOnly) {
-      return res.status(200).json({ ok: true, message: "Acceso autorizado.", role: accessRole });
+      return res.status(200).json({ ok: true, message: "Acceso autorizado.", role });
     }
 
     const menu = req.body?.menu || {};
@@ -70,19 +45,19 @@ export default async function handler(req, res) {
       {
         $set: {
           dayKey,
-          title: String(menu.title).trim(),
+          title:       String(menu.title).trim(),
           description: String(menu.description).trim(),
-          price: Number(menu.price || 0),
-          active: true,
-          updatedAt: new Date()
+          price:       Number(menu.price || 0),
+          active:      true,
+          updatedAt:   new Date()
         }
       },
       { upsert: true }
     );
 
     const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
-    const menuDoc = await db.collection("menus").findOne({ dayKey, active: true });
-    const orders = await db.collection("orders")
+    const menuDoc     = await db.collection("menus").findOne({ dayKey, active: true });
+    const orders      = await db.collection("orders")
       .find(getTodayOrdersQuery(dayKey))
       .sort({ createdAt: 1 })
       .toArray();
@@ -93,6 +68,9 @@ export default async function handler(req, res) {
       snapshot: buildDashboardSnapshot(settingsDoc || {}, menuDoc || {}, orders)
     });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ ok: false, message: error.message });
+    }
     return res.status(400).json({
       ok: false,
       message: error.message || "No se pudo guardar el menu."

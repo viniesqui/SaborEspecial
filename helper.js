@@ -2,57 +2,88 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
-  const SESSION_KEY = "ceep-role-session";
   const els = {
-    helperUpdatedAt: document.getElementById("helperUpdatedAt"),
-    helperMenuForm: document.getElementById("helperMenuForm"),
-    helperMenuTitleInput: document.getElementById("helperMenuTitleInput"),
+    helperUpdatedAt:            document.getElementById("helperUpdatedAt"),
+    helperMenuForm:             document.getElementById("helperMenuForm"),
+    helperMenuTitleInput:       document.getElementById("helperMenuTitleInput"),
     helperMenuDescriptionInput: document.getElementById("helperMenuDescriptionInput"),
-    helperMenuPriceInput: document.getElementById("helperMenuPriceInput"),
-    helperMenuSubmitButton: document.getElementById("helperMenuSubmitButton"),
-    helperMenuFeedback: document.getElementById("helperMenuFeedback"),
-    helperTotalOrders: document.getElementById("helperTotalOrders"),
-    helperPendingPaymentCount: document.getElementById("helperPendingPaymentCount"),
-    helperPaidOrders: document.getElementById("helperPaidOrders"),
-    helperDeliveredOrders: document.getElementById("helperDeliveredOrders"),
-    helperPendingOrders: document.getElementById("helperPendingOrders"),
-    helperDeliveriesList: document.getElementById("helperDeliveriesList"),
-    helperDeliveryRowTemplate: document.getElementById("helperDeliveryRowTemplate"),
-    helperLogoutButton: document.getElementById("helperLogoutButton")
+    helperMenuPriceInput:       document.getElementById("helperMenuPriceInput"),
+    helperMenuSubmitButton:     document.getElementById("helperMenuSubmitButton"),
+    helperMenuFeedback:         document.getElementById("helperMenuFeedback"),
+    helperTotalOrders:          document.getElementById("helperTotalOrders"),
+    helperPendingPaymentCount:  document.getElementById("helperPendingPaymentCount"),
+    helperPaidOrders:           document.getElementById("helperPaidOrders"),
+    helperDeliveredOrders:      document.getElementById("helperDeliveredOrders"),
+    helperPendingOrders:        document.getElementById("helperPendingOrders"),
+    helperDeliveriesList:       document.getElementById("helperDeliveriesList"),
+    helperDeliveryRowTemplate:  document.getElementById("helperDeliveryRowTemplate"),
+    helperLogoutButton:         document.getElementById("helperLogoutButton")
   };
 
-  let accessPassword = "";
+  let accessToken = "";
   let isSaving = false;
 
-  function getSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
-    }
-  }
+  // -----------------------------------------------------------------------
+  // Auth helpers
+  // -----------------------------------------------------------------------
 
-  function requireHelperSession() {
-    const session = getSession();
-    if (!session || session.role !== "HELPER" || !session.password) {
+  async function requireStaffSession() {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) {
       window.location.replace("./index.html");
       return false;
     }
+    accessToken = session.access_token;
 
-    accessPassword = session.password;
+    window.supabaseClient.auth.onAuthStateChange(function (event, newSession) {
+      if (!newSession) {
+        window.location.replace("./index.html");
+        return;
+      }
+      accessToken = newSession.access_token;
+    });
+
     return true;
   }
 
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
+  async function logout() {
+    await window.supabaseClient.auth.signOut();
     window.location.replace("./index.html");
   }
+
+  // -----------------------------------------------------------------------
+  // Network helpers
+  // -----------------------------------------------------------------------
 
   function setFeedback(message, isError) {
     els.helperMenuFeedback.textContent = message || "";
     els.helperMenuFeedback.style.color = isError ? "#842f3d" : "#705d52";
   }
+
+  async function fetchJson(path, options) {
+    const requestOptions = {
+      method: options?.method || "GET",
+      headers: { "Authorization": "Bearer " + accessToken }
+    };
+
+    if (options?.body) {
+      requestOptions.headers["Content-Type"] = "application/json";
+      requestOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(config.apiBaseUrl + path, requestOptions);
+    const payload = await response.json().catch(function () { return null; });
+
+    if (!response.ok) {
+      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
+    }
+
+    return payload;
+  }
+
+  // -----------------------------------------------------------------------
+  // UI helpers
+  // -----------------------------------------------------------------------
 
   function formatDateTime(value) {
     if (!value) return "Sin datos recientes";
@@ -72,9 +103,7 @@
 
     const parts = formatter.formatToParts(date);
     const get = function (type) {
-      const part = parts.find(function (item) {
-        return item.type === type;
-      });
+      const part = parts.find(function (item) { return item.type === type; });
       return part ? part.value : "";
     };
 
@@ -82,34 +111,10 @@
     const capitalizedWeekday = weekday ? weekday.charAt(0).toUpperCase() + weekday.slice(1) : "";
     const dayPeriod = get("dayPeriod").replace(/\./g, "").toUpperCase();
 
-    return "Actualizado " + [capitalizedWeekday, get("day"), "de", get("month"), "del", get("year"), "a las", get("hour") + ":" + get("minute"), dayPeriod].join(" ");
-  }
-
-  async function fetchJson(path, options) {
-    const requestOptions = {
-      method: options?.method || "GET",
-      headers: {}
-    };
-
-    if (accessPassword) {
-      requestOptions.headers["x-orders-password"] = accessPassword;
-    }
-
-    if (options?.body) {
-      requestOptions.headers["Content-Type"] = "application/json";
-      requestOptions.body = JSON.stringify(options.body);
-    }
-
-    const response = await fetch(config.apiBaseUrl + path, requestOptions);
-    const payload = await response.json().catch(function () {
-      return null;
-    });
-
-    if (!response.ok) {
-      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
-    }
-
-    return payload;
+    return "Actualizado " + [
+      capitalizedWeekday, get("day"), "de", get("month"), "del", get("year"),
+      "a las", get("hour") + ":" + get("minute"), dayPeriod
+    ].join(" ");
   }
 
   function getPaymentClass(paymentStatus) {
@@ -125,6 +130,10 @@
     return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
   }
 
+  // -----------------------------------------------------------------------
+  // Rendering
+  // -----------------------------------------------------------------------
+
   function renderOrders(orders) {
     els.helperDeliveriesList.innerHTML = "";
 
@@ -137,7 +146,8 @@
     orders.forEach(function (order) {
       const node = els.helperDeliveryRowTemplate.content.cloneNode(true);
       node.querySelector(".buyer-name").textContent = order.buyerName;
-      node.querySelector(".delivery-order-meta").textContent = [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
+      node.querySelector(".delivery-order-meta").textContent =
+        [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
       node.querySelector(".helper-order-status").textContent = order.orderStatus || "SOLICITADO";
       node.querySelector(".helper-created-at").textContent = order.createdAtLabel || "";
 
@@ -180,6 +190,10 @@
     renderOrders(snapshot.orders || []);
   }
 
+  // -----------------------------------------------------------------------
+  // Data fetching
+  // -----------------------------------------------------------------------
+
   async function refreshSnapshot() {
     const snapshot = await fetchJson("/deliveries");
     renderSnapshot(snapshot);
@@ -202,9 +216,9 @@
     if (isSaving) return;
 
     const formData = new FormData(els.helperMenuForm);
-    const title = String(formData.get("title") || "").trim();
+    const title       = String(formData.get("title")       || "").trim();
     const description = String(formData.get("description") || "").trim();
-    const price = Number(formData.get("price") || 0);
+    const price       = Number(formData.get("price")        || 0);
 
     if (!title || !description || price < 0) {
       setFeedback("Complete nombre, descripcion y precio.", true);
@@ -218,10 +232,7 @@
     try {
       await fetchJson("/menu", {
         method: "POST",
-        body: {
-          accessPassword,
-          menu: { title, description, price }
-        }
+        body: { menu: { title, description, price } }
       });
 
       setFeedback("Menú actualizado correctamente.", false);
@@ -234,18 +245,24 @@
     }
   }
 
-  if (!requireHelperSession()) return;
+  // -----------------------------------------------------------------------
+  // Init
+  // -----------------------------------------------------------------------
 
-  els.helperLogoutButton.addEventListener("click", logout);
-  els.helperMenuForm.addEventListener("submit", submitMenu);
+  async function start() {
+    if (!(await requireStaffSession())) return;
 
-  refreshSnapshot().catch(function (error) {
-    setFeedback(error.message, true);
-  });
+    els.helperLogoutButton.addEventListener("click", logout);
+    els.helperMenuForm.addEventListener("submit", submitMenu);
 
-  window.setInterval(function () {
-    refreshSnapshot().catch(function () {
-      return null;
+    refreshSnapshot().catch(function (error) {
+      setFeedback(error.message, true);
     });
-  }, Number(config.refreshIntervalMs || 30000));
+
+    window.setInterval(function () {
+      refreshSnapshot().catch(function () { return null; });
+    }, Number(config.refreshIntervalMs || 30000));
+  }
+
+  start();
 })();

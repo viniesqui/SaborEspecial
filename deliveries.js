@@ -2,45 +2,80 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
-  const SESSION_KEY = "ceep-role-session";
   const els = {
-    deliveriesUpdatedAt: document.getElementById("deliveriesUpdatedAt"),
-    deliveriesTotalOrders: document.getElementById("deliveriesTotalOrders"),
-    deliveriesPaidOrders: document.getElementById("deliveriesPaidOrders"),
+    deliveriesUpdatedAt:        document.getElementById("deliveriesUpdatedAt"),
+    deliveriesTotalOrders:      document.getElementById("deliveriesTotalOrders"),
+    deliveriesPaidOrders:       document.getElementById("deliveriesPaidOrders"),
     deliveriesPaidPendingOrders: document.getElementById("deliveriesPaidPendingOrders"),
-    deliveriesPendingOrders: document.getElementById("deliveriesPendingOrders"),
-    deliveriesDeliveredOrders: document.getElementById("deliveriesDeliveredOrders"),
-    deliveriesList: document.getElementById("deliveriesList"),
-    deliveryRowTemplate: document.getElementById("deliveryRowTemplate"),
-    deliveriesLogoutButton: document.getElementById("deliveriesLogoutButton")
+    deliveriesPendingOrders:    document.getElementById("deliveriesPendingOrders"),
+    deliveriesDeliveredOrders:  document.getElementById("deliveriesDeliveredOrders"),
+    deliveriesList:             document.getElementById("deliveriesList"),
+    deliveryRowTemplate:        document.getElementById("deliveryRowTemplate"),
+    deliveriesLogoutButton:     document.getElementById("deliveriesLogoutButton")
   };
 
-  let ordersPassword = "";
+  let accessToken = "";
 
-  function getSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
-    }
-  }
+  // -----------------------------------------------------------------------
+  // Auth helpers
+  // -----------------------------------------------------------------------
 
-  function requireOrdersSession() {
-    const session = getSession();
-    if (!session || session.role !== "ORDERS" || !session.password) {
+  async function requireOrdersSession() {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) {
       window.location.replace("./index.html");
       return false;
     }
+    accessToken = session.access_token;
 
-    ordersPassword = session.password;
+    window.supabaseClient.auth.onAuthStateChange(function (event, newSession) {
+      if (!newSession) {
+        window.location.replace("./index.html");
+        return;
+      }
+      accessToken = newSession.access_token;
+    });
+
     return true;
   }
 
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
+  async function logout() {
+    await window.supabaseClient.auth.signOut();
     window.location.replace("./index.html");
   }
+
+  // -----------------------------------------------------------------------
+  // Network helpers
+  // -----------------------------------------------------------------------
+
+  async function fetchJson(path, options) {
+    if (!config.apiBaseUrl || config.apiBaseUrl.includes("PEGUE_AQUI")) {
+      throw new Error("Debe configurar la URL del backend en config.js");
+    }
+
+    const requestOptions = {
+      method: options && options.method ? options.method : "GET",
+      headers: { "Authorization": "Bearer " + accessToken }
+    };
+
+    if (options && options.body) {
+      requestOptions.headers["Content-Type"] = "application/json";
+      requestOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(config.apiBaseUrl + path, requestOptions);
+    const payload = await response.json().catch(function () { return null; });
+
+    if (!response.ok) {
+      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
+    }
+
+    return payload;
+  }
+
+  // -----------------------------------------------------------------------
+  // UI helpers
+  // -----------------------------------------------------------------------
 
   function getPaymentClass(paymentStatus) {
     return String(paymentStatus || "").toUpperCase() === "PAGADO"
@@ -73,54 +108,23 @@
 
     const parts = formatter.formatToParts(date);
     const get = function (type) {
-      const part = parts.find(function (item) {
-        return item.type === type;
-      });
+      const part = parts.find(function (item) { return item.type === type; });
       return part ? part.value : "";
     };
 
     const weekday = get("weekday");
     const capitalizedWeekday = weekday ? weekday.charAt(0).toUpperCase() + weekday.slice(1) : "";
-    const day = get("day");
-    const month = get("month");
-    const year = get("year");
-    const hour = get("hour");
-    const minute = get("minute");
     const dayPeriod = get("dayPeriod").replace(/\./g, "").toUpperCase();
 
-    return "Actualizado " + [capitalizedWeekday, day, "de", month, "del", year, "a las", hour + ":" + minute, dayPeriod].join(" ");
+    return "Actualizado " + [
+      capitalizedWeekday, get("day"), "de", get("month"), "del", get("year"),
+      "a las", get("hour") + ":" + get("minute"), dayPeriod
+    ].join(" ");
   }
 
-  async function fetchJson(path, options) {
-    if (!config.apiBaseUrl || config.apiBaseUrl.includes("PEGUE_AQUI")) {
-      throw new Error("Debe configurar la URL del backend en config.js");
-    }
-
-    const requestOptions = {
-      method: options && options.method ? options.method : "GET",
-      headers: {}
-    };
-
-    if (ordersPassword) {
-      requestOptions.headers["x-orders-password"] = ordersPassword;
-    }
-
-    if (options && options.body) {
-      requestOptions.headers["Content-Type"] = "application/json";
-      requestOptions.body = JSON.stringify(options.body);
-    }
-
-    const response = await fetch(config.apiBaseUrl + path, requestOptions);
-    const payload = await response.json().catch(function () {
-      return null;
-    });
-
-    if (!response.ok) {
-      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
-    }
-
-    return payload;
-  }
+  // -----------------------------------------------------------------------
+  // Rendering
+  // -----------------------------------------------------------------------
 
   function renderOrders(orders) {
     els.deliveriesList.innerHTML = "";
@@ -134,12 +138,15 @@
     orders.forEach(function (order) {
       const node = els.deliveryRowTemplate.content.cloneNode(true);
       node.querySelector(".buyer-name").textContent = order.buyerName;
-      node.querySelector(".delivery-order-meta").textContent = [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
+      node.querySelector(".delivery-order-meta").textContent =
+        [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
       node.querySelector(".delivery-order-status").textContent = order.orderStatus || "SOLICITADO";
       node.querySelector(".delivery-created-at").textContent = order.createdAtLabel || "";
+
       const paymentNode = node.querySelector(".delivery-payment-status");
       paymentNode.textContent = getPaymentLabel(order.paymentStatus);
       paymentNode.className = getPaymentClass(order.paymentStatus);
+
       node.querySelector(".delivery-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
       node.querySelector(".delivery-delivered-at").textContent = order.deliveredAtLabel || "";
 
@@ -167,6 +174,10 @@
     renderOrders(snapshot.orders || []);
   }
 
+  // -----------------------------------------------------------------------
+  // Data fetching
+  // -----------------------------------------------------------------------
+
   async function refreshSnapshot() {
     const snapshot = await fetchJson("/deliveries");
     renderSnapshot(snapshot);
@@ -180,25 +191,27 @@
       });
       renderSnapshot(snapshot);
     } catch (error) {
-      setGateFeedback(error.message, true);
+      // deliveries.js had a reference to setGateFeedback which didn't exist.
+      // Silently log until a proper feedback element is added to the template.
+      console.error("Error actualizando entrega:", error.message);
     }
   }
 
-  function start() {
-    if (!requireOrdersSession()) return;
+  // -----------------------------------------------------------------------
+  // Init
+  // -----------------------------------------------------------------------
+
+  async function start() {
+    if (!(await requireOrdersSession())) return;
+
     if (els.deliveriesLogoutButton) {
       els.deliveriesLogoutButton.addEventListener("click", logout);
     }
 
-    refreshSnapshot().catch(function () {
-      return null;
-    });
+    refreshSnapshot().catch(function () { return null; });
 
     window.setInterval(function () {
-      if (!ordersPassword) return;
-      refreshSnapshot().catch(function () {
-        return null;
-      });
+      refreshSnapshot().catch(function () { return null; });
     }, Number(config.refreshIntervalMs || 30000));
   }
 

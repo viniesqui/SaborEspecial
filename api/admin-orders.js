@@ -2,23 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../lib/mongodb.js";
 import { getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
-
-function validateAdminSecret(req, res) {
-  const adminSecret = String(req.body?.adminSecret || "");
-  const expectedSecret = String(process.env.ADMIN_SECRET || "");
-
-  if (!expectedSecret) {
-    res.status(500).json({ ok: false, message: "Missing ADMIN_SECRET in Vercel." });
-    return false;
-  }
-
-  if (adminSecret !== expectedSecret) {
-    res.status(401).json({ ok: false, message: "Clave administrativa incorrecta." });
-    return false;
-  }
-
-  return true;
-}
+import { requireAuth } from "../lib/auth.js";
 
 function formatDateTime(value) {
   if (!value) return "";
@@ -75,9 +59,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
-  if (!validateAdminSecret(req, res)) return;
-
   try {
+    await requireAuth(req, ["ADMIN"]);
     const db = await getDb();
     const action = String(req.body?.action || "list");
     const dayKey = getDayKey();
@@ -119,6 +102,9 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ ok: false, message: "Accion no soportada." });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ ok: false, message: error.message });
+    }
     return res.status(500).json({
       ok: false,
       message: error.message || "No fue posible consultar los pedidos."

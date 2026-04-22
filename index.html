@@ -20,16 +20,20 @@
       <div class="section-title">
         <div>
           <p class="eyebrow">Acceso por rol</p>
-          <h1>Ingrese la clave</h1>
+          <h1>Iniciar sesión</h1>
         </div>
       </div>
       <p class="admin-hero__text">
-        Ingrese su contraseña y el sistema le mostrará únicamente el módulo que corresponde a su rol.
+        Ingrese su correo y contraseña. El sistema le mostrará únicamente el módulo que corresponde a su rol.
       </p>
       <form id="loginForm" class="form">
         <label>
+          Correo electrónico
+          <input id="loginEmail" name="loginEmail" type="email" maxlength="254" required autofocus autocomplete="email">
+        </label>
+        <label>
           Contraseña
-          <input id="loginPassword" name="loginPassword" type="password" maxlength="120" required autofocus>
+          <input id="loginPassword" name="loginPassword" type="password" maxlength="120" required autocomplete="current-password">
         </label>
         <button id="loginSubmit" type="submit" class="button">Ingresar</button>
         <p id="loginFeedback" class="feedback" aria-live="polite"></p>
@@ -42,7 +46,9 @@
   </footer>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="./config.js"></script>
+  <script src="./supabase-client.js"></script>
   <script src="./login.js" defer></script>
 </body>
 </html>

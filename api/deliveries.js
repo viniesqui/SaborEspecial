@@ -1,28 +1,8 @@
 import { getDb } from "../lib/mongodb.js";
 import { getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
+import { requireAuth } from "../lib/auth.js";
 import { ObjectId } from "mongodb";
-
-function getOrdersPassword(req) {
-  return String(req.headers["x-orders-password"] || req.headers["x-access-password"] || "");
-}
-
-function ensureAuthorized(req, res) {
-  const ordersPassword = String(process.env.ORDERS_PASSWORD || "");
-  const helperPassword = String(process.env.HELPER_PASSWORD || "");
-  if (!ordersPassword && !helperPassword) {
-    res.status(500).json({ ok: false, message: "Missing delivery access password in Vercel." });
-    return false;
-  }
-
-  const suppliedPassword = getOrdersPassword(req);
-  if (suppliedPassword !== ordersPassword && suppliedPassword !== helperPassword) {
-    res.status(401).json({ ok: false, message: "Clave de entregas incorrecta." });
-    return false;
-  }
-
-  return true;
-}
 
 function formatTimestamp(value) {
   if (!value) return "";
@@ -103,9 +83,8 @@ export default async function handler(req, res) {
   setCors(res);
 
   if (req.method === "GET") {
-    if (!ensureAuthorized(req, res)) return;
-
     try {
+      await requireAuth(req, ["ADMIN", "HELPER", "ORDERS"]);
       const db = await getDb();
       const dayKey = getDayKey();
 
@@ -118,6 +97,9 @@ export default async function handler(req, res) {
 
       return res.status(200).json(buildDeliveriesSnapshot(settingsDoc || {}, menuDoc || {}, orders));
     } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ ok: false, message: error.message });
+      }
       return res.status(500).json({
         ok: false,
         message: error.message || "Unexpected server error."
@@ -126,9 +108,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    if (!ensureAuthorized(req, res)) return;
-
     try {
+      await requireAuth(req, ["ADMIN", "HELPER", "ORDERS"]);
       const db = await getDb();
       const dayKey = getDayKey();
       const orderId = String(req.body?.orderId || "");
@@ -170,6 +151,9 @@ export default async function handler(req, res) {
 
       return res.status(200).json(buildDeliveriesSnapshot(settingsDoc || {}, menuDoc || {}, orders));
     } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ ok: false, message: error.message });
+      }
       return res.status(500).json({
         ok: false,
         message: error.message || "Unexpected server error."

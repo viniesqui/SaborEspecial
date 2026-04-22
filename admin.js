@@ -2,66 +2,71 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
-  const SESSION_KEY = "ceep-role-session";
   const els = {
-    menuForm: document.getElementById("menuForm"),
-    adminSecretInput: document.getElementById("adminSecret"),
-    menuSubmitButton: document.getElementById("menuSubmitButton"),
-    menuFeedback: document.getElementById("menuFeedback"),
-    menuTitleInput: document.getElementById("menuTitleInput"),
-    menuDescriptionInput: document.getElementById("menuDescriptionInput"),
-    menuPriceInput: document.getElementById("menuPriceInput"),
-    exportOrdersButton: document.getElementById("exportOrdersButton"),
-    adminUpdatedAt: document.getElementById("adminUpdatedAt"),
-    currentMenuTitle: document.getElementById("currentMenuTitle"),
-    currentMenuDescription: document.getElementById("currentMenuDescription"),
-    currentMenuPrice: document.getElementById("currentMenuPrice"),
-    currentAvailableMeals: document.getElementById("currentAvailableMeals"),
-    currentSalesWindow: document.getElementById("currentSalesWindow"),
-    currentDeliveryWindow: document.getElementById("currentDeliveryWindow"),
-    adminOrdersTotal: document.getElementById("adminOrdersTotal"),
-    adminOrdersPaid: document.getElementById("adminOrdersPaid"),
-    adminOrdersPending: document.getElementById("adminOrdersPending"),
-    adminOrdersList: document.getElementById("adminOrdersList"),
-    adminOrderRowTemplate: document.getElementById("adminOrderRowTemplate"),
-    adminLogoutButton: document.getElementById("adminLogoutButton")
+    menuForm:                document.getElementById("menuForm"),
+    adminSecretInput:        document.getElementById("adminSecret"),
+    menuSubmitButton:        document.getElementById("menuSubmitButton"),
+    menuFeedback:            document.getElementById("menuFeedback"),
+    menuTitleInput:          document.getElementById("menuTitleInput"),
+    menuDescriptionInput:    document.getElementById("menuDescriptionInput"),
+    menuPriceInput:          document.getElementById("menuPriceInput"),
+    exportOrdersButton:      document.getElementById("exportOrdersButton"),
+    adminUpdatedAt:          document.getElementById("adminUpdatedAt"),
+    currentMenuTitle:        document.getElementById("currentMenuTitle"),
+    currentMenuDescription:  document.getElementById("currentMenuDescription"),
+    currentMenuPrice:        document.getElementById("currentMenuPrice"),
+    currentAvailableMeals:   document.getElementById("currentAvailableMeals"),
+    currentSalesWindow:      document.getElementById("currentSalesWindow"),
+    currentDeliveryWindow:   document.getElementById("currentDeliveryWindow"),
+    adminOrdersTotal:        document.getElementById("adminOrdersTotal"),
+    adminOrdersPaid:         document.getElementById("adminOrdersPaid"),
+    adminOrdersPending:      document.getElementById("adminOrdersPending"),
+    adminOrdersList:         document.getElementById("adminOrdersList"),
+    adminOrderRowTemplate:   document.getElementById("adminOrderRowTemplate"),
+    adminLogoutButton:       document.getElementById("adminLogoutButton")
   };
 
   let isSaving = false;
-  let adminSecret = "";
+  let accessToken = "";
 
-  function formatCurrency(amount) {
-    return new Intl.NumberFormat("es-CR", {
-      style: "currency",
-      currency: "CRC",
-      maximumFractionDigits: 0
-    }).format(Number(amount || 0));
-  }
+  // -----------------------------------------------------------------------
+  // Auth helpers
+  // -----------------------------------------------------------------------
 
-  function setMenuFeedback(message, isError) {
-    els.menuFeedback.textContent = message || "";
-    els.menuFeedback.style.color = isError ? "#842f3d" : "#705d52";
-  }
-
-  function getSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
+  async function requireAdminSession() {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.replace("./index.html");
+      return false;
     }
+    accessToken = session.access_token;
+
+    // Keep accessToken fresh on every Supabase token refresh.
+    window.supabaseClient.auth.onAuthStateChange(function (event, newSession) {
+      if (!newSession) {
+        window.location.replace("./index.html");
+        return;
+      }
+      accessToken = newSession.access_token;
+    });
+
+    // Hide the legacy password field if it exists in the DOM.
+    if (els.adminSecretInput) els.adminSecretInput.closest("label")?.remove();
+
+    return true;
   }
 
-  function formatDateTime(value) {
-    if (!value) return "Sin datos recientes";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "Sin datos recientes";
-    return "Actualizado " + new Intl.DateTimeFormat("es-CR", {
-      hour: "numeric",
-      minute: "2-digit",
-      day: "2-digit",
-      month: "2-digit"
-    }).format(date);
+  async function logout() {
+    await window.supabaseClient.auth.signOut();
+    window.location.replace("./index.html");
+  }
+
+  // -----------------------------------------------------------------------
+  // Network helpers
+  // -----------------------------------------------------------------------
+
+  function authHeaders(extra) {
+    return Object.assign({ "Authorization": "Bearer " + accessToken }, extra || {});
   }
 
   async function fetchJson(path, options) {
@@ -70,20 +75,17 @@
     }
 
     const requestOptions = {
-      method: options && options.method ? options.method : "GET"
+      method: options && options.method ? options.method : "GET",
+      headers: authHeaders()
     };
 
     if (options && options.body) {
-      requestOptions.headers = {
-        "Content-Type": "application/json"
-      };
+      requestOptions.headers["Content-Type"] = "application/json";
       requestOptions.body = JSON.stringify(options.body);
     }
 
     const response = await fetch(config.apiBaseUrl + path, requestOptions);
-    const payload = await response.json().catch(function () {
-      return null;
-    });
+    const payload = await response.json().catch(function () { return null; });
 
     if (!response.ok) {
       throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
@@ -99,16 +101,12 @@
 
     const response = await fetch(config.apiBaseUrl + path, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body || {})
     });
 
     if (!response.ok) {
-      const maybeJson = await response.json().catch(function () {
-        return null;
-      });
+      const maybeJson = await response.json().catch(function () { return null; });
       throw new Error((maybeJson && maybeJson.message) || "No fue posible exportar el archivo.");
     }
 
@@ -123,22 +121,38 @@
     window.URL.revokeObjectURL(url);
   }
 
-  function requireAdminSession() {
-    const session = getSession();
-    if (!session || session.role !== "ADMIN" || !session.password) {
-      window.location.replace("./index.html");
-      return false;
-    }
+  // -----------------------------------------------------------------------
+  // UI helpers
+  // -----------------------------------------------------------------------
 
-    adminSecret = session.password;
-    els.adminSecretInput.value = session.password;
-    return true;
+  function formatCurrency(amount) {
+    return new Intl.NumberFormat("es-CR", {
+      style: "currency",
+      currency: "CRC",
+      maximumFractionDigits: 0
+    }).format(Number(amount || 0));
   }
 
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
-    window.location.replace("./index.html");
+  function setMenuFeedback(message, isError) {
+    els.menuFeedback.textContent = message || "";
+    els.menuFeedback.style.color = isError ? "#842f3d" : "#705d52";
   }
+
+  function formatDateTime(value) {
+    if (!value) return "Sin datos recientes";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Sin datos recientes";
+    return "Actualizado " + new Intl.DateTimeFormat("es-CR", {
+      hour: "numeric",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit"
+    }).format(date);
+  }
+
+  // -----------------------------------------------------------------------
+  // Rendering
+  // -----------------------------------------------------------------------
 
   function renderSnapshot(snapshot) {
     const menu = snapshot.menu || {};
@@ -154,15 +168,6 @@
       els.menuTitleInput.value = menu.title || "";
       els.menuDescriptionInput.value = menu.description || "";
       els.menuPriceInput.value = menu.price || "";
-    }
-  }
-
-  async function refreshSnapshot() {
-    try {
-      const snapshot = await fetchJson("/dashboard");
-      renderSnapshot(snapshot);
-    } catch (error) {
-      setMenuFeedback(error.message, true);
     }
   }
 
@@ -195,7 +200,8 @@
     snapshot.orders.forEach(function (order) {
       const node = els.adminOrderRowTemplate.content.cloneNode(true);
       node.querySelector(".admin-order-name").textContent = order.buyerName;
-      node.querySelector(".admin-order-meta").textContent = [order.buyerPhone, order.paymentReference].filter(Boolean).join(" | ") || "Sin referencia";
+      node.querySelector(".admin-order-meta").textContent =
+        [order.buyerPhone, order.paymentReference].filter(Boolean).join(" | ") || "Sin referencia";
       node.querySelector(".admin-order-date").textContent = order.createdAtLabel || "-";
       node.querySelector(".admin-order-method").textContent = getMethodLabel(order.paymentMethod);
 
@@ -219,16 +225,24 @@
     els.adminOrdersList.appendChild(fragment);
   }
 
-  async function refreshAdminOrders() {
-    if (!adminSecret) return;
+  // -----------------------------------------------------------------------
+  // Data fetching
+  // -----------------------------------------------------------------------
 
+  async function refreshSnapshot() {
+    try {
+      const snapshot = await fetchJson("/dashboard");
+      renderSnapshot(snapshot);
+    } catch (error) {
+      setMenuFeedback(error.message, true);
+    }
+  }
+
+  async function refreshAdminOrders() {
     try {
       const snapshot = await fetchJson("/admin-orders", {
         method: "POST",
-        body: {
-          adminSecret,
-          action: "list"
-        }
+        body: { action: "list" }
       });
       renderAdminOrders(snapshot);
     } catch (error) {
@@ -236,26 +250,19 @@
     }
   }
 
-  function getMenuPayload() {
-    const formData = new FormData(els.menuForm);
-    return {
-      adminSecret: String(formData.get("adminSecret") || "").trim(),
-      title: String(formData.get("title") || "").trim(),
-      description: String(formData.get("description") || "").trim(),
-      price: Number(formData.get("price") || 0)
-    };
-  }
-
   async function submitMenu(event) {
     event.preventDefault();
-
     if (isSaving) return;
 
-    const payload = getMenuPayload();
-    payload.adminSecret = adminSecret;
+    const formData = new FormData(els.menuForm);
+    const payload = {
+      title:       String(formData.get("title")       || "").trim(),
+      description: String(formData.get("description") || "").trim(),
+      price:       Number(formData.get("price")        || 0)
+    };
 
-    if (!payload.adminSecret || !payload.title || !payload.description || payload.price < 0) {
-      setMenuFeedback("Complete la clave, el nombre, la descripcion y el precio.", true);
+    if (!payload.title || !payload.description || payload.price < 0) {
+      setMenuFeedback("Complete el nombre, la descripcion y el precio.", true);
       return;
     }
 
@@ -266,14 +273,7 @@
     try {
       const result = await fetchJson("/menu", {
         method: "POST",
-        body: {
-          adminSecret: payload.adminSecret,
-          menu: {
-            title: payload.title,
-            description: payload.description,
-            price: payload.price
-          }
-        }
+        body: { menu: payload }
       });
 
       setMenuFeedback(result.message || "Menú actualizado correctamente.", false);
@@ -292,11 +292,6 @@
   }
 
   async function exportOrders() {
-    if (!adminSecret) {
-      setMenuFeedback("Primero ingrese con la clave administrativa.", true);
-      return;
-    }
-
     els.exportOrdersButton.disabled = true;
     setMenuFeedback("Exportando pedidos...", false);
 
@@ -308,7 +303,7 @@
         String(now.getDate()).padStart(2, "0")
       ].join("-");
 
-      await downloadFile("/orders-export", { adminSecret }, `orders-${fileDate}.csv`);
+      await downloadFile("/orders-export", {}, `orders-${fileDate}.csv`);
       setMenuFeedback("Archivo exportado correctamente.", false);
     } catch (error) {
       setMenuFeedback(error.message, true);
@@ -318,20 +313,10 @@
   }
 
   async function updatePaymentStatus(orderId, paymentStatus) {
-    if (!adminSecret) {
-      setMenuFeedback("Primero ingrese con la clave administrativa.", true);
-      return;
-    }
-
     try {
       const snapshot = await fetchJson("/admin-orders", {
         method: "POST",
-        body: {
-          adminSecret,
-          action: "updatePaymentStatus",
-          orderId,
-          paymentStatus
-        }
+        body: { action: "updatePaymentStatus", orderId, paymentStatus }
       });
       renderAdminOrders(snapshot);
       setMenuFeedback("Estado de pago actualizado.", false);
@@ -340,8 +325,12 @@
     }
   }
 
-  function start() {
-    if (!requireAdminSession()) return;
+  // -----------------------------------------------------------------------
+  // Init
+  // -----------------------------------------------------------------------
+
+  async function start() {
+    if (!(await requireAdminSession())) return;
 
     els.menuForm.addEventListener("submit", submitMenu);
     els.exportOrdersButton.addEventListener("click", exportOrders);
@@ -353,7 +342,6 @@
     refreshAdminOrders();
 
     window.setInterval(function () {
-      if (!adminSecret) return;
       refreshSnapshot();
       refreshAdminOrders();
     }, Number(config.refreshIntervalMs || 30000));

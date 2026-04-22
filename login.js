@@ -2,17 +2,17 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
-  const SESSION_KEY = "ceep-role-session";
   const ROLE_ROUTE_MAP = {
-    CUSTOMER: "./customer-app.html",
+    ADMIN:  "./admin.html",
     HELPER: "./helper.html",
-    ADMIN: "./admin.html",
     ORDERS: "./deliveries.html"
   };
+
   const els = {
-    form: document.getElementById("loginForm"),
+    form:     document.getElementById("loginForm"),
+    email:    document.getElementById("loginEmail"),
     password: document.getElementById("loginPassword"),
-    submit: document.getElementById("loginSubmit"),
+    submit:   document.getElementById("loginSubmit"),
     feedback: document.getElementById("loginFeedback")
   };
 
@@ -21,41 +21,14 @@
     els.feedback.style.color = isError ? "#842f3d" : "#705d52";
   }
 
-  function getSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  async function fetchJson(path, options) {
-    const response = await fetch(config.apiBaseUrl + path, {
-      method: options?.method || "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: options?.body ? JSON.stringify(options.body) : undefined
-    });
-
-    const payload = await response.json().catch(function () {
-      return null;
-    });
-
-    if (!response.ok) {
-      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
-    }
-
-    return payload;
-  }
-
   async function submitLogin(event) {
     event.preventDefault();
+
+    const email    = String(els.email.value    || "").trim();
     const password = String(els.password.value || "").trim();
 
-    if (!password) {
-      setFeedback("Ingrese la clave.", true);
+    if (!email || !password) {
+      setFeedback("Ingrese su correo y contraseña.", true);
       return;
     }
 
@@ -63,27 +36,56 @@
     setFeedback("Verificando acceso...", false);
 
     try {
-      const result = await fetchJson("/auth-role", {
-        method: "POST",
-        body: { password }
+      // 1. Authenticate with Supabase — returns a session with access_token.
+      const { data: authData, error: authError } =
+        await window.supabaseClient.auth.signInWithPassword({ email, password });
+
+      if (authError || !authData.session) {
+        throw new Error(authError?.message || "Credenciales incorrectas.");
+      }
+
+      const token = authData.session.access_token;
+
+      // 2. Fetch the user's cafeteria role from our API.
+      //    /api/auth-role verifies the JWT server-side and reads cafeteria_users.
+      const res = await fetch(config.apiBaseUrl + "/auth-role", {
+        headers: { "Authorization": "Bearer " + token }
       });
 
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        role: result.role,
-        password
-      }));
+      const payload = await res.json().catch(function () { return null; });
+      if (!res.ok || !payload?.ok) {
+        throw new Error((payload && payload.message) || "No fue posible determinar el rol.");
+      }
 
-      window.location.href = result.route;
+      // 3. Supabase persists the session automatically in localStorage.
+      //    No password or role is stored manually — just redirect.
+      window.location.replace(payload.route);
     } catch (error) {
       setFeedback(error.message, true);
       els.submit.disabled = false;
     }
   }
 
-  const session = getSession();
-  if (session && session.role && ROLE_ROUTE_MAP[session.role]) {
-    window.location.replace(ROLE_ROUTE_MAP[session.role]);
+  // If a valid Supabase session already exists, skip the login form.
+  async function redirectIfAuthenticated() {
+    if (!window.supabaseClient) return;
+
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) return;
+
+    try {
+      const res = await fetch(config.apiBaseUrl + "/auth-role", {
+        headers: { "Authorization": "Bearer " + session.access_token }
+      });
+      const payload = await res.json().catch(function () { return null; });
+      if (payload?.ok && ROLE_ROUTE_MAP[payload.role]) {
+        window.location.replace(payload.route);
+      }
+    } catch (_) {
+      // Session exists but role lookup failed — stay on login page.
+    }
   }
 
+  redirectIfAuthenticated();
   els.form.addEventListener("submit", submitLogin);
 })();
