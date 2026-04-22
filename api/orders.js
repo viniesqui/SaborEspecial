@@ -1,40 +1,29 @@
-import { getDb } from "../lib/mongodb.js";
-import { buildDashboardSnapshot, getDayKey, getTodayOrdersQuery, parseBoolean } from "../lib/dashboard.js";
+import { supabase } from "../lib/supabase.js";
+import { buildDashboardSnapshot, getDayKey, parseBoolean } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
 
 function validateOrder(order) {
   if (!order.buyerName || !order.paymentMethod) {
     throw new Error("Faltan datos obligatorios.");
   }
-}
-
-function normalizeOrder(order, menu, dayKey) {
-  const createdAt = new Date();
-
-  return {
-    createdAt,
-    dayKey,
-    buyerName: String(order.buyerName || "").trim(),
-    buyerId: "",
-    buyerPhone: "",
-    paymentMethod: String(order.paymentMethod || "").trim(),
-    paymentStatus: "PENDIENTE_DE_PAGO",
-    paymentConfirmedAt: null,
-    paymentReference: "",
-    notes: "",
-    menuTitle: menu?.title || "Menu no configurado",
-    menuDescription: menu?.description || "",
-    menuPrice: Number(menu?.price || 1000),
-    orderStatus: "SOLICITADO",
-    deliveryStatus: "PENDIENTE_ENTREGA",
-    deliveredAt: null,
-    recordStatus: "ACTIVO"
-  };
+  if (!["SINPE", "EFECTIVO"].includes(String(order.paymentMethod).toUpperCase())) {
+    throw new Error("Método de pago inválido.");
+  }
 }
 
 function isSalesWindowAllowed(settings, snapshot) {
-  if (parseBoolean(settings.disableSalesWindow)) return true;
+  if (parseBoolean(settings.disable_sales_window)) return true;
   return snapshot.isSalesOpen;
+}
+
+async function fetchTodayData(cafeteriaId, dayKey) {
+  const [{ data: settings }, { data: menu }, { data: orders }] = await Promise.all([
+    supabase.from("settings").select("*").eq("cafeteria_id", cafeteriaId).single(),
+    supabase.from("menus").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).eq("active", true).maybeSingle(),
+    supabase.from("orders").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).neq("record_status", "CANCELADO").order("created_at", { ascending: true })
+  ]);
+
+  return { settings: settings || {}, menu: menu || {}, orders: orders || [] };
 }
 
 export default async function handler(req, res) {
@@ -45,41 +34,54 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
+  const cafeteriaId = process.env.CAFETERIA_ID;
+  if (!cafeteriaId) {
+    return res.status(500).json({ ok: false, message: "Cafetería no configurada." });
+  }
+
   try {
-    const db = await getDb();
     const dayKey = getDayKey();
     const order = req.body?.order || {};
 
     validateOrder(order);
 
-    const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
-    const menuDoc = await db.collection("menus").findOne({ dayKey, active: true });
-    const existingOrders = await db.collection("orders")
-      .find(getTodayOrdersQuery(dayKey))
-      .sort({ createdAt: 1 })
-      .toArray();
+    const { settings, menu, orders: existingOrders } = await fetchTodayData(cafeteriaId, dayKey);
+    const snapshot = buildDashboardSnapshot(settings, menu, existingOrders);
 
-    const snapshot = buildDashboardSnapshot(settingsDoc || {}, menuDoc || {}, existingOrders);
-
-    if (!isSalesWindowAllowed(settingsDoc || {}, snapshot)) {
-      return res.status(400).json({ ok: false, message: "La venta de almuerzos esta cerrada." });
+    if (!isSalesWindowAllowed(settings, snapshot)) {
+      return res.status(400).json({ ok: false, message: "La venta de almuerzos está cerrada." });
     }
 
     if (snapshot.availableMeals <= 0) {
       return res.status(400).json({ ok: false, message: "Ya no hay almuerzos disponibles para hoy." });
     }
 
-    await db.collection("orders").insertOne(normalizeOrder(order, menuDoc, dayKey));
+    const { error: insertError } = await supabase.from("orders").insert({
+      cafeteria_id: cafeteriaId,
+      day_key: dayKey,
+      buyer_name: String(order.buyerName || "").trim(),
+      buyer_email: String(order.buyerEmail || "").trim().toLowerCase(),
+      buyer_id: "",
+      buyer_phone: "",
+      menu_id: menu.id || null,
+      menu_title: menu.title || "Menu no configurado",
+      menu_description: menu.description || "",
+      menu_price: Number(menu.price || 1000),
+      payment_method: String(order.paymentMethod).toUpperCase(),
+      payment_status: "PENDIENTE_DE_PAGO",
+      order_status: "SOLICITADO",
+      delivery_status: "PENDIENTE_ENTREGA",
+      record_status: "ACTIVO"
+    });
 
-    const freshOrders = await db.collection("orders")
-      .find(getTodayOrdersQuery(dayKey))
-      .sort({ createdAt: 1 })
-      .toArray();
+    if (insertError) throw insertError;
+
+    const { settings: freshSettings, menu: freshMenu, orders: freshOrders } = await fetchTodayData(cafeteriaId, dayKey);
 
     return res.status(200).json({
       ok: true,
       message: "Compra registrada correctamente.",
-      snapshot: buildDashboardSnapshot(settingsDoc || {}, menuDoc || {}, freshOrders)
+      snapshot: buildDashboardSnapshot(freshSettings, freshMenu, freshOrders)
     });
   } catch (error) {
     return res.status(400).json({

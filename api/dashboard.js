@@ -1,5 +1,5 @@
-import { getDb } from "../lib/mongodb.js";
-import { buildDashboardSnapshot, getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
+import { supabase } from "../lib/supabase.js";
+import { buildDashboardSnapshot, getDayKey } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
 
 export default async function handler(req, res) {
@@ -10,18 +10,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
+  const cafeteriaId = process.env.CAFETERIA_ID;
+  if (!cafeteriaId) {
+    return res.status(500).json({ ok: false, message: "Cafetería no configurada." });
+  }
+
   try {
-    const db = await getDb();
     const dayKey = getDayKey();
 
-    const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
-    const menuDoc = await db.collection("menus").findOne({ dayKey, active: true });
-    const orders = await db.collection("orders")
-      .find(getTodayOrdersQuery(dayKey))
-      .sort({ createdAt: 1 })
-      .toArray();
+    const [{ data: settings }, { data: menu }, { data: orders }] = await Promise.all([
+      supabase.from("settings").select("*").eq("cafeteria_id", cafeteriaId).single(),
+      supabase.from("menus").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).eq("active", true).maybeSingle(),
+      supabase.from("orders").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).neq("record_status", "CANCELADO").order("created_at", { ascending: true })
+    ]);
 
-    return res.status(200).json(buildDashboardSnapshot(settingsDoc || {}, menuDoc || {}, orders));
+    return res.status(200).json(buildDashboardSnapshot(settings || {}, menu || {}, orders || []));
   } catch (error) {
     return res.status(500).json({
       ok: false,

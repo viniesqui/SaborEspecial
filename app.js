@@ -207,6 +207,7 @@
     const formData = new FormData(els.orderForm);
     return {
       buyerName: String(formData.get("buyerName") || "").trim(),
+      buyerEmail: String(formData.get("buyerEmail") || "").trim().toLowerCase(),
       paymentMethod: String(formData.get("paymentMethod") || "").trim()
     };
   }
