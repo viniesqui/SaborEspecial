@@ -469,6 +469,75 @@
   }
 
   // -----------------------------------------------------------------------
+  // Online / Offline + Sync status banner
+  // -----------------------------------------------------------------------
+
+  function initStatusBanner() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+
+    function update() {
+      if (!navigator.onLine) {
+        banner.dataset.state = "offline";
+        banner.textContent = "Sin conexión — los cambios no se guardarán";
+      } else {
+        if (banner.dataset.state === "offline") {
+          delete banner.dataset.state;
+          banner.textContent = "";
+        }
+      }
+    }
+
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    update();
+  }
+
+  function setBannerSyncing() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "syncing";
+    banner.textContent = "Sincronizando...";
+  }
+
+  function setBannerSynced() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "synced";
+    const t = new Date().toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+    banner.textContent = "Sincronizado a las " + t;
+    setTimeout(function () {
+      delete banner.dataset.state;
+      banner.textContent = "";
+    }, 3000);
+  }
+
+  function setBannerError(retryFn) {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "error";
+    banner.textContent = "Error al sincronizar — toca para reintentar";
+    banner.onclick = function () {
+      banner.onclick = null;
+      if (retryFn) retryFn();
+    };
+  }
+
+  function clearEmailWarning() {
+    const el = document.getElementById("emailWarningMsg");
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = "";
+  }
+
+  function showEmailWarning(message) {
+    const el = document.getElementById("emailWarningMsg");
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  // -----------------------------------------------------------------------
   // Data fetching
   // -----------------------------------------------------------------------
 
@@ -535,6 +604,7 @@
       });
 
       setMenuFeedback(result.message || "Menú actualizado correctamente.", false);
+      clearEmailWarning();
       if (result.snapshot) {
         renderSnapshot(result.snapshot);
       } else {
@@ -571,6 +641,7 @@
   }
 
   async function updatePaymentStatus(orderId, paymentStatus) {
+    setBannerSyncing();
     try {
       const snapshot = await fetchJson("/admin-orders", {
         method: "POST",
@@ -578,8 +649,15 @@
       });
       renderAdminOrders(snapshot);
       setMenuFeedback("Estado de pago actualizado.", false);
+      setBannerSynced();
+      if (snapshot.emailWarning) {
+        showEmailWarning(snapshot.emailWarning);
+      } else {
+        clearEmailWarning();
+      }
     } catch (error) {
       setMenuFeedback(error.message, true);
+      setBannerError(function () { updatePaymentStatus(orderId, paymentStatus); });
     }
   }
 
@@ -597,6 +675,8 @@
     if (els.adminLogoutButton) {
       els.adminLogoutButton.addEventListener("click", logout);
     }
+
+    initStatusBanner();
 
     // Initial load — all data in parallel
     refreshSnapshot();

@@ -79,6 +79,61 @@
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Online / Offline + Sync status banner
+  // -----------------------------------------------------------------------
+
+  function initStatusBanner() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+
+    function update() {
+      if (!navigator.onLine) {
+        banner.dataset.state = "offline";
+        banner.textContent = "Sin conexión — mostrando datos guardados";
+      } else {
+        if (banner.dataset.state === "offline") {
+          delete banner.dataset.state;
+          banner.textContent = "";
+        }
+      }
+    }
+
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    update();
+  }
+
+  function setBannerSyncing() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "syncing";
+    banner.textContent = "Sincronizando...";
+  }
+
+  function setBannerSynced() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "synced";
+    const t = new Date().toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+    banner.textContent = "Sincronizado a las " + t;
+    setTimeout(function () {
+      delete banner.dataset.state;
+      banner.textContent = "";
+    }, 3000);
+  }
+
+  function setBannerError(retryFn) {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "error";
+    banner.textContent = "Error al sincronizar — toca para reintentar";
+    banner.onclick = function () {
+      banner.onclick = null;
+      if (retryFn) retryFn();
+    };
+  }
+
   function getPaymentClass(paymentStatus) {
     return String(paymentStatus || "").toUpperCase() === "PAGADO"
       ? "delivery-payment-status delivery-payment-status--paid customer-payment-status"
@@ -210,13 +265,17 @@
       const snapshot = await fetchJson("/dashboard");
       saveCachedSnapshot(snapshot);
       renderSnapshot(snapshot);
+      setBannerSynced();
     } catch (error) {
       const cached = loadCachedSnapshot();
       if (cached) {
         renderSnapshot(cached);
       }
-      if (showErrors) {
+      if (!navigator.onLine) {
+        // offline banner already shown by initStatusBanner
+      } else if (showErrors) {
         setFeedback(error.message, true);
+        setBannerError(function () { refreshSnapshot(true); });
       }
     }
   }
@@ -253,6 +312,7 @@
     state.isSubmitting = true;
     els.submitButton.disabled = true;
     setFeedback("Registrando compra...", false);
+    setBannerSyncing();
 
     try {
       const result = await fetchJson("/orders", {
@@ -284,6 +344,7 @@
       }
     } catch (error) {
       setFeedback(error.message, true);
+      setBannerError(null);
     } finally {
       state.isSubmitting = false;
       if (state.snapshot) {
@@ -320,6 +381,7 @@
       els.logoutButton.addEventListener("click", logout);
     }
 
+    initStatusBanner();
     refreshSnapshot(false);
     window.setInterval(function () {
       refreshSnapshot(false);

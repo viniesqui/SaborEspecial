@@ -2,6 +2,8 @@
   "use strict";
 
   const config = window.APP_CONFIG || {};
+  const DELIVERIES_CACHE_KEY = "ceep-deliveries-cache-v1";
+
   const els = {
     deliveriesUpdatedAt:        document.getElementById("deliveriesUpdatedAt"),
     deliveriesTotalOrders:      document.getElementById("deliveriesTotalOrders"),
@@ -15,6 +17,89 @@
   };
 
   let accessToken = "";
+
+  // -----------------------------------------------------------------------
+  // Local cache helpers
+  // -----------------------------------------------------------------------
+
+  function loadCachedDeliveries() {
+    try {
+      const raw = localStorage.getItem(DELIVERIES_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  }
+
+  function saveCachedDeliveries(snapshot) {
+    try {
+      localStorage.setItem(DELIVERIES_CACHE_KEY, JSON.stringify(snapshot));
+    } catch (_) {}
+  }
+
+  // -----------------------------------------------------------------------
+  // Online / Offline + Sync status banner
+  // -----------------------------------------------------------------------
+
+  function initStatusBanner() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+
+    function update() {
+      if (!navigator.onLine) {
+        banner.dataset.state = "offline";
+        banner.textContent = "Sin conexión — mostrando datos guardados";
+      } else {
+        if (banner.dataset.state === "offline") {
+          delete banner.dataset.state;
+          banner.textContent = "";
+        }
+      }
+    }
+
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    update();
+  }
+
+  function setBannerSyncing() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "syncing";
+    banner.textContent = "Sincronizando...";
+  }
+
+  function setBannerSynced() {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "synced";
+    const t = new Date().toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+    banner.textContent = "Sincronizado a las " + t;
+    setTimeout(function () {
+      delete banner.dataset.state;
+      banner.textContent = "";
+    }, 3000);
+  }
+
+  function setBannerError(retryFn) {
+    const banner = document.getElementById("statusBanner");
+    if (!banner) return;
+    banner.dataset.state = "error";
+    banner.textContent = "Error al sincronizar — toca para reintentar";
+    banner.onclick = function () {
+      banner.onclick = null;
+      if (retryFn) retryFn();
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Feedback row (above the orders table)
+  // -----------------------------------------------------------------------
+
+  function setDeliveriesFeedback(message, isError) {
+    const el = document.getElementById("deliveriesFeedback");
+    if (!el) return;
+    el.textContent = message || "";
+    el.style.color = isError ? "var(--primary-dark, #842f3d)" : "var(--muted, #888)";
+  }
 
   // -----------------------------------------------------------------------
   // Auth helpers
@@ -215,21 +300,47 @@
   // -----------------------------------------------------------------------
 
   async function refreshSnapshot() {
-    const snapshot = await fetchJson("/deliveries");
-    renderSnapshot(snapshot);
+    try {
+      const snapshot = await fetchJson("/deliveries");
+      saveCachedDeliveries(snapshot);
+      renderSnapshot(snapshot);
+      setDeliveriesFeedback("", false);
+      setBannerSynced();
+    } catch (error) {
+      const cached = loadCachedDeliveries();
+      if (cached) {
+        renderSnapshot(cached);
+        setDeliveriesFeedback("Mostrando datos guardados. Sin conexión o error de red.", false);
+      } else {
+        setDeliveriesFeedback("Error al cargar datos: " + error.message, true);
+      }
+      if (!navigator.onLine) {
+        // offline banner already shown by initStatusBanner
+      } else {
+        setBannerError(function () { refreshSnapshot(); });
+      }
+    }
   }
 
   async function updateDeliveryStatus(orderId, deliveryStatus) {
+    setBannerSyncing();
+    setDeliveriesFeedback("Actualizando...", false);
     try {
       const snapshot = await fetchJson("/deliveries", {
         method: "POST",
         body: { orderId, deliveryStatus }
       });
+      saveCachedDeliveries(snapshot);
       renderSnapshot(snapshot);
+      setBannerSynced();
+      if (snapshot.emailWarning) {
+        setDeliveriesFeedback(snapshot.emailWarning, false);
+      } else {
+        setDeliveriesFeedback("", false);
+      }
     } catch (error) {
-      // deliveries.js had a reference to setGateFeedback which didn't exist.
-      // Silently log until a proper feedback element is added to the template.
-      console.error("Error actualizando entrega:", error.message);
+      setDeliveriesFeedback("Error: " + error.message + " — toca el banner para reintentar.", true);
+      setBannerError(function () { updateDeliveryStatus(orderId, deliveryStatus); });
     }
   }
 
@@ -244,10 +355,12 @@
       els.deliveriesLogoutButton.addEventListener("click", logout);
     }
 
-    refreshSnapshot().catch(function () { return null; });
+    initStatusBanner();
+
+    refreshSnapshot();
 
     window.setInterval(function () {
-      refreshSnapshot().catch(function () { return null; });
+      refreshSnapshot();
     }, Number(config.refreshIntervalMs || 30000));
   }
 

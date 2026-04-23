@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+  <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
   <div class="site-shell">
     <header class="site-header">
       <a href="./admin.html" class="site-brand">Almuerzos CEEP</a>
@@ -67,6 +68,7 @@
 
             <button id="menuSubmitButton" type="submit" class="button">Guardar menú de hoy</button>
             <p id="menuFeedback" class="feedback" aria-live="polite"></p>
+            <p id="emailWarningMsg" class="email-warning" hidden></p>
           </form>
         </section>
 
