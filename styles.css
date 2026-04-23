@@ -865,6 +865,219 @@ textarea {
   font-size: 1.05rem;
 }
 
+/* ==========================================================================
+   Tracking page (track.html)
+   ========================================================================== */
+
+.track-layout {
+  width: min(640px, calc(100% - 2rem));
+  margin: 2rem auto 0;
+  padding: 0 0 3rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.track-card {
+  padding: 1.5rem;
+}
+
+.track-loading-text {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 0;
+  margin: 0;
+}
+
+.track-error-message {
+  color: var(--primary-dark);
+  margin: 0.5rem 0 0;
+}
+
+/* Live indicator badge */
+.track-live-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.track-live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  transition: background 300ms ease;
+}
+
+.track-live-dot.is-connected {
+  background: var(--success);
+  animation: track-pulse 2s ease-in-out infinite;
+}
+
+@keyframes track-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* 5-step timeline */
+.track-timeline {
+  list-style: none;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.track-step {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+
+.track-step:last-child {
+  padding-bottom: 0;
+}
+
+/* Vertical connector line */
+.track-step::before {
+  content: "";
+  position: absolute;
+  left: calc(2.4rem / 2 - 1px);
+  top: 2.4rem;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  transition: background 300ms ease;
+}
+
+.track-step:last-child::before {
+  display: none;
+}
+
+.track-step.is-done::before {
+  background: var(--success);
+}
+
+/* Step icon circle */
+.track-step__icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  transition: background 300ms ease, border-color 300ms ease;
+}
+
+.track-step.is-done .track-step__icon {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.track-step.is-done .track-step__icon::after {
+  content: "✓";
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.track-step.is-active .track-step__icon {
+  background: var(--primary);
+  border-color: var(--primary);
+  animation: track-pulse 2s ease-in-out infinite;
+}
+
+.track-step.is-active .track-step__icon::after {
+  content: "●";
+  color: #fff;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+/* Step text */
+.track-step__body {
+  padding-top: 0.35rem;
+}
+
+.track-step__label {
+  display: block;
+  font-size: 1rem;
+  transition: color 300ms ease;
+}
+
+.track-step.is-pending .track-step__label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.track-step.is-active .track-step__label {
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.track-step.is-done .track-step__label {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.track-step__time {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+  min-height: 1.1rem;
+}
+
+/* Order detail rows */
+.track-details {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.track-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Tracking link section (customer-app.html) */
+.tracking-link-card {
+  grid-column: 1 / -1;
+}
+
+.tracking-link-box {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  word-break: break-all;
+}
+
+.tracking-link {
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
 @media (max-width: 640px) {
   .site-header {
     flex-direction: column;

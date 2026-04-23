@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento de Pedido | Almuerzos CEEP</title>
+  <meta name="description" content="Consulta el estado de tu pedido en tiempo real, sin necesidad de iniciar sesión.">
+  <meta name="theme-color" content="#a33d4d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <span class="site-brand">Almuerzos CEEP</span>
+    </header>
+
+    <main class="track-layout">
+
+      <section id="trackLoading" class="card track-card" aria-live="polite">
+        <p class="track-loading-text">Consultando pedido…</p>
+      </section>
+
+      <section id="trackError" class="card track-card" hidden aria-live="assertive">
+        <p class="eyebrow">No se pudo cargar el pedido</p>
+        <p id="trackErrorMessage" class="track-error-message">Verifica que el enlace sea correcto.</p>
+      </section>
+
+      <section id="trackContent" class="card track-card" hidden>
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Seguimiento de pedido</p>
+            <h2 id="trackBuyerName">—</h2>
+          </div>
+          <div class="track-live-badge">
+            <span id="trackLiveDot" class="track-live-dot"></span>
+            <span id="trackLiveLabel" aria-live="polite">Conectando…</span>
+          </div>
+        </div>
+
+        <!-- 5-step workflow timeline -->
+        <ol id="trackTimeline" class="track-timeline" aria-label="Estado del pedido">
+          <li class="track-step is-pending" data-step="solicitado">
+            <div class="track-step__icon" aria-hidden="true"></div>
+            <div class="track-step__body">
+              <strong class="track-step__label">Solicitado</strong>
+              <p id="trackTimeSolicitado" class="track-step__time"></p>
+            </div>
+          </li>
+          <li class="track-step is-pending" data-step="pago-verificado">
+            <div class="track-step__icon" aria-hidden="true"></div>
+            <div class="track-step__body">
+              <strong class="track-step__label">Pago Verificado</strong>
+              <p id="trackTimePago" class="track-step__time"></p>
+            </div>
+          </li>
+          <li class="track-step is-pending" data-step="en-preparacion">
+            <div class="track-step__icon" aria-hidden="true"></div>
+            <div class="track-step__body">
+              <strong class="track-step__label">En Preparación</strong>
+              <p id="trackTimePrep" class="track-step__time"></p>
+            </div>
+          </li>
+          <li class="track-step is-pending" data-step="listo-entrega">
+            <div class="track-step__icon" aria-hidden="true"></div>
+            <div class="track-step__body">
+              <strong class="track-step__label">Listo para Entrega</strong>
+              <p id="trackTimeListo" class="track-step__time"></p>
+            </div>
+          </li>
+          <li class="track-step is-pending" data-step="entregado">
+            <div class="track-step__icon" aria-hidden="true"></div>
+            <div class="track-step__body">
+              <strong class="track-step__label">Entregado</strong>
+              <p id="trackTimeEntregado" class="track-step__time"></p>
+            </div>
+          </li>
+        </ol>
+
+        <!-- Order details -->
+        <div class="track-details">
+          <div class="track-detail-row">
+            <span class="detail-label">Menú</span>
+            <strong id="trackMenuTitle">—</strong>
+          </div>
+          <div class="track-detail-row">
+            <span class="detail-label">Precio</span>
+            <strong id="trackMenuPrice">—</strong>
+          </div>
+          <div class="track-detail-row">
+            <span class="detail-label">Método de pago</span>
+            <strong id="trackPaymentMethod">—</strong>
+          </div>
+        </div>
+
+        <div class="notice" style="margin-top:1.25rem">
+          <p style="margin:0;font-size:0.9em">
+            Puedes guardar esta página en favoritos para consultar el estado de tu almuerzo en cualquier momento.
+          </p>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="site-footer">
+      © 2026 · Todos los derechos reservados · Desarrollado por Cristian Ramírez
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="./config.js"></script>
+  <script src="./track.js" defer></script>
+</body>
+</html>

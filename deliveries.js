@@ -90,6 +90,48 @@
     return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
   }
 
+  // Human-readable labels for each delivery_status value
+  const DELIVERY_LABELS = {
+    PENDIENTE_ENTREGA:  "Solicitado",
+    EN_PREPARACION:     "En Preparación",
+    LISTO_PARA_ENTREGA: "Listo para Entrega",
+    ENTREGADO:          "Entregado"
+  };
+
+  // Workflow: map each status to the next logical step { status, label }
+  const NEXT_STEP = {
+    PENDIENTE_ENTREGA:  { status: "EN_PREPARACION",     label: "→ En Preparación" },
+    EN_PREPARACION:     { status: "LISTO_PARA_ENTREGA", label: "→ Listo para Entrega" },
+    LISTO_PARA_ENTREGA: { status: "ENTREGADO",          label: "✓ Marcar Entregado" }
+  };
+
+  function buildWorkflowCell(node, order) {
+    const statusKey = String(order.deliveryStatus || "PENDIENTE_ENTREGA").toUpperCase();
+
+    // Column 4 — current delivery status pill
+    const statusPill = node.querySelector(".delivery-workflow-status");
+    if (statusPill) {
+      statusPill.textContent = DELIVERY_LABELS[statusKey] || statusKey.replaceAll("_", " ");
+    }
+
+    // Column 5 — next-step button (none if already delivered)
+    const actionsCell = node.querySelector(".delivery-workflow-actions");
+    if (!actionsCell) return;
+    actionsCell.innerHTML = "";
+
+    const next = NEXT_STEP[statusKey];
+    if (!next) return;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "delivery-action";
+    btn.textContent = next.label;
+    btn.addEventListener("click", function () {
+      updateDeliveryStatus(order.id, next.status);
+    });
+    actionsCell.appendChild(btn);
+  }
+
   function formatDateTime(value) {
     if (!value) return "Sin datos recientes";
     const date = new Date(value);
@@ -150,13 +192,7 @@
       node.querySelector(".delivery-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
       node.querySelector(".delivery-delivered-at").textContent = order.deliveredAtLabel || "";
 
-      node.querySelectorAll(".delivery-action").forEach(function (button) {
-        const isSelected = button.dataset.deliveryStatus === order.deliveryStatus;
-        button.classList.toggle("is-selected", isSelected);
-        button.addEventListener("click", function () {
-          updateDeliveryStatus(order.id, button.dataset.deliveryStatus);
-        });
-      });
+      buildWorkflowCell(node, order);
 
       fragment.appendChild(node);
     });

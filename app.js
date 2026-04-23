@@ -21,7 +21,9 @@
     paymentMethodInput: document.getElementById("paymentMethod"),
     paymentOptions: Array.from(document.querySelectorAll(".payment-option")),
     buyerRowTemplate: document.getElementById("buyerRowTemplate"),
-    logoutButton: document.getElementById("logoutButton")
+    logoutButton: document.getElementById("logoutButton"),
+    trackingLinkSection: document.getElementById("trackingLinkSection"),
+    trackingLink: document.getElementById("trackingLink")
   };
 
   function getSession() {
@@ -90,16 +92,32 @@
     return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
   }
 
+  const DELIVERY_STATUS_LABELS = {
+    ENTREGADO:          "Entregado",
+    LISTO_PARA_ENTREGA: "Listo para Entrega",
+    EN_PREPARACION:     "En Preparación",
+    PENDIENTE_ENTREGA:  "Solicitado"
+  };
+
+  const DELIVERY_STATUS_DONE = new Set(["ENTREGADO", "LISTO_PARA_ENTREGA"]);
+
   function getDeliveryBadge(deliveryStatus) {
-    return String(deliveryStatus || "").toUpperCase() === "ENTREGADO"
-      ? {
-          text: "Entregado",
-          className: "delivery-action is-selected customer-delivery-badge"
-        }
-      : {
-          text: "Pendiente de entrega",
-          className: "delivery-action customer-delivery-badge"
-        };
+    const key  = String(deliveryStatus || "").toUpperCase();
+    const text = DELIVERY_STATUS_LABELS[key] || "Solicitado";
+    const done = DELIVERY_STATUS_DONE.has(key);
+    return {
+      text,
+      className: done
+        ? "delivery-action is-selected customer-delivery-badge"
+        : "delivery-action customer-delivery-badge"
+    };
+  }
+
+  function showTrackingLink(trackingUrl) {
+    if (!els.trackingLinkSection || !els.trackingLink) return;
+    els.trackingLink.href        = trackingUrl;
+    els.trackingLink.textContent = trackingUrl;
+    els.trackingLinkSection.hidden = false;
   }
 
   function renderBuyers(orders) {
@@ -249,6 +267,15 @@
       els.orderForm.reset();
       selectPaymentMethod("");
       setFeedback(result.message || "Compra registrada correctamente.", false);
+
+      if (result.trackingToken) {
+        const trackingUrl =
+          window.location.origin +
+          window.location.pathname.replace(/[^/]*$/, "") +
+          "track.html?token=" + encodeURIComponent(result.trackingToken);
+        showTrackingLink(trackingUrl);
+      }
+
       if (result.snapshot) {
         saveCachedSnapshot(result.snapshot);
         renderSnapshot(result.snapshot);

@@ -81,6 +81,21 @@
       </form>
     </section>
 
+    <!-- Tracking link — shown after order submission -->
+    <section id="trackingLinkSection" class="card tracking-link-card" hidden>
+      <p class="eyebrow">¡Pedido registrado!</p>
+      <h2 style="margin:0 0 0.5rem">Seguimiento en tiempo real</h2>
+      <p style="margin:0 0 1rem;color:var(--muted)">
+        Guarda este enlace para ver el estado de tu almuerzo sin necesidad de iniciar sesión:
+      </p>
+      <div class="tracking-link-box">
+        <a id="trackingLink" href="#" class="tracking-link" target="_blank" rel="noopener"></a>
+      </div>
+      <p style="margin:0.75rem 0 0;font-size:0.88em;color:var(--muted)">
+        También recibirás este enlace en tu correo de confirmación si proporcionaste tu email.
+      </p>
+    </section>
+
     <section class="card delivery-table-card customer-tracking-card">
       <div class="delivery-table customer-delivery-table">
         <div class="delivery-table__head customer-delivery-table__head">

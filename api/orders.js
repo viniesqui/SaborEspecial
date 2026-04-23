@@ -1,6 +1,8 @@
+import { randomUUID } from "crypto";
 import { supabase } from "../lib/supabase.js";
 import { buildDashboardSnapshot, getDayKey, parseBoolean } from "../lib/dashboard.js";
 import { handleOptions, setCors } from "../lib/http.js";
+import { sendOrderStatusEmail } from "../lib/email.js";
 
 function validateOrder(order) {
   if (!order.buyerName || !order.paymentMethod) {
@@ -56,11 +58,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, message: "Ya no hay almuerzos disponibles para hoy." });
     }
 
-    const { error: insertError } = await supabase.from("orders").insert({
+    const trackingToken = randomUUID();
+    const buyerEmail = String(order.buyerEmail || "").trim().toLowerCase();
+
+    const { data: newOrder, error: insertError } = await supabase.from("orders").insert({
       cafeteria_id: cafeteriaId,
       day_key: dayKey,
       buyer_name: String(order.buyerName || "").trim(),
-      buyer_email: String(order.buyerEmail || "").trim().toLowerCase(),
+      buyer_email: buyerEmail,
       buyer_id: "",
       buyer_phone: "",
       menu_id: menu.id || null,
@@ -71,16 +76,31 @@ export default async function handler(req, res) {
       payment_status: "PENDIENTE_DE_PAGO",
       order_status: "SOLICITADO",
       delivery_status: "PENDIENTE_ENTREGA",
-      record_status: "ACTIVO"
-    });
+      record_status: "ACTIVO",
+      tracking_token: trackingToken
+    }).select("id").single();
 
     if (insertError) throw insertError;
 
     const { settings: freshSettings, menu: freshMenu, orders: freshOrders } = await fetchTodayData(cafeteriaId, dayKey);
 
+    const appBaseUrl = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+    const trackingUrl = appBaseUrl ? `${appBaseUrl}/track.html?token=${trackingToken}` : "";
+
+    if (buyerEmail && newOrder) {
+      sendOrderStatusEmail({
+        to: buyerEmail,
+        buyerName: String(order.buyerName || "").trim(),
+        orderId: newOrder.id,
+        status: "SOLICITADO",
+        trackingUrl
+      }).catch(() => null);
+    }
+
     return res.status(200).json({
       ok: true,
       message: "Compra registrada correctamente.",
+      trackingToken,
       snapshot: buildDashboardSnapshot(freshSettings, freshMenu, freshOrders)
     });
   } catch (error) {
