@@ -65,12 +65,24 @@
     if (!actionsCell) return;
     actionsCell.innerHTML = "";
 
+    // SINPE orders waiting for manual verification get a dedicated confirm button.
+    if (order.needsSinpeVerification) {
+      var sinpeBtn = document.createElement("button");
+      sinpeBtn.type      = "button";
+      sinpeBtn.className = "delivery-action delivery-action--sinpe-verify";
+      sinpeBtn.textContent = "Confirmar Pago SINPE";
+      sinpeBtn.addEventListener("click", function () {
+        updatePaymentStatus(order.id, "PAGADO");
+      });
+      actionsCell.appendChild(sinpeBtn);
+    }
+
     var next = NEXT_STEP[key];
     if (!next) return;
 
     var btn = document.createElement("button");
-    btn.type      = "button";
-    btn.className = "delivery-action";
+    btn.type        = "button";
+    btn.className   = "delivery-action";
     btn.textContent = next.label;
     btn.addEventListener("click", function () {
       updateDeliveryStatus(order.id, next.status);
@@ -88,6 +100,13 @@
     var fragment = document.createDocumentFragment();
     orders.forEach(function (order) {
       var node = els.rowTemplate.content.cloneNode(true);
+
+      // Highlight rows where a SINPE transfer is waiting for manual confirmation.
+      if (order.needsSinpeVerification) {
+        var row = node.querySelector(".delivery-table__row");
+        if (row) row.classList.add("is-sinpe-pending");
+      }
+
       node.querySelector(".buyer-name").textContent             = order.buyerName;
       node.querySelector(".delivery-order-meta").textContent    = [order.paymentMethod, order.timestampLabel].filter(Boolean).join(" | ");
       node.querySelector(".delivery-order-status").textContent  = order.orderStatus || "SOLICITADO";
@@ -145,6 +164,21 @@
     } catch (err) {
       setFeedback("Error: " + err.message + " — toca el banner para reintentar.", true);
       banner.setError(function () { updateDeliveryStatus(orderId, deliveryStatus); });
+    }
+  }
+
+  async function updatePaymentStatus(orderId, paymentStatus) {
+    banner.setSyncing();
+    setFeedback("Verificando pago SINPE...", false);
+    try {
+      var snapshot = await api.fetchJson("/deliveries", { method: "POST", body: { orderId, paymentStatus } });
+      saveCache(snapshot);
+      renderSnapshot(snapshot);
+      banner.setSynced();
+      setFeedback(snapshot.emailWarning || "", false);
+    } catch (err) {
+      setFeedback("Error: " + err.message + " — toca el banner para reintentar.", true);
+      banner.setError(function () { updatePaymentStatus(orderId, paymentStatus); });
     }
   }
 

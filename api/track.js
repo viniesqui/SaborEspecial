@@ -11,6 +11,8 @@ const PUBLIC_FIELDS = [
   "delivery_status",
   "created_at",
   "payment_confirmed_at",
+  "prepared_at",
+  "ready_at",
   "delivered_at",
   "menu_title",
   "menu_description",

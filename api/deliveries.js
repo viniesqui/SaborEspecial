@@ -71,7 +71,10 @@ async function buildSnapshot(cafeteriaId, dayKey) {
       timestampLabel:          formatTimestamp(o.created_at),
       createdAtLabel:          formatTimestamp(o.created_at),
       paymentConfirmedAtLabel: o.payment_confirmed_at ? formatTimestamp(o.payment_confirmed_at) : "",
-      deliveredAtLabel:        o.delivered_at         ? formatTimestamp(o.delivered_at)          : ""
+      deliveredAtLabel:        o.delivered_at         ? formatTimestamp(o.delivered_at)          : "",
+      // Signals the kitchen UI to surface the manual SINPE verification button.
+      needsSinpeVerification:  o.payment_method === "SINPE" &&
+        !["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"].includes(String(o.payment_status || "").toUpperCase())
     }))
   };
 }
@@ -92,7 +95,7 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { cafeteriaId } = await requireAuth(req, ["ADMIN", "HELPER", "ORDERS"]);
+      const { cafeteriaId, userId } = await requireAuth(req, ["ADMIN", "HELPER", "ORDERS"]);
       const dayKey         = getDayKey();
       const orderId        = String(req.body?.orderId        || "");
       const deliveryStatus = req.body?.deliveryStatus ? String(req.body.deliveryStatus) : null;
@@ -113,6 +116,11 @@ export default async function handler(req, res) {
 
       let emailStatus = null;
 
+      const appBaseUrl  = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+      const trackingUrl = appBaseUrl && order.tracking_token
+        ? `${appBaseUrl}/track.html?token=${order.tracking_token}`
+        : "";
+
       if (deliveryStatus) {
         if (!VALID_DELIVERY_STATUSES.includes(deliveryStatus)) {
           return res.status(400).json({ ok: false, message: "Estado de entrega inválido." });
@@ -120,12 +128,15 @@ export default async function handler(req, res) {
         await updateDelivery(orderId, cafeteriaId, deliveryStatus);
         await logDeliveryEvent(cafeteriaId, orderId, dayKey, deliveryStatus);
 
-        if (deliveryStatus === "ENTREGADO" && order.buyer_email) {
+        // Notify buyer at each visible kitchen milestone, not just on final delivery.
+        const NOTIFY_STATUSES = ["EN_PREPARACION", "LISTO_PARA_ENTREGA", "ENTREGADO"];
+        if (NOTIFY_STATUSES.includes(deliveryStatus) && order.buyer_email) {
           emailStatus = await sendOrderStatusEmail({
-            to:        order.buyer_email,
-            buyerName: order.buyer_name,
-            orderId:   order.id,
-            status:    "ENTREGADO"
+            to:         order.buyer_email,
+            buyerName:  order.buyer_name,
+            orderId:    order.id,
+            status:     deliveryStatus,
+            trackingUrl
           });
         }
       }
@@ -134,15 +145,17 @@ export default async function handler(req, res) {
         if (!PAID_STATUSES.includes(paymentStatus)) {
           return res.status(400).json({ ok: false, message: "Estado de pago inválido." });
         }
-        await updatePayment(orderId, cafeteriaId, paymentStatus);
+        // userId is stored for accounting: which staff member verified the SINPE transfer.
+        await updatePayment(orderId, cafeteriaId, paymentStatus, userId);
 
         const isConfirming = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"].includes(paymentStatus);
         if (isConfirming && order.buyer_email) {
           emailStatus = await sendOrderStatusEmail({
-            to:        order.buyer_email,
-            buyerName: order.buyer_name,
-            orderId:   order.id,
-            status:    paymentStatus
+            to:         order.buyer_email,
+            buyerName:  order.buyer_name,
+            orderId:    order.id,
+            status:     paymentStatus,
+            trackingUrl
           });
         }
       }

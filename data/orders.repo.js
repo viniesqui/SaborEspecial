@@ -84,7 +84,7 @@ export async function findAll(cafeteriaId) {
 export async function findById(orderId, cafeteriaId, dayKey) {
   const { data, error } = await supabase
     .from("orders")
-    .select("id, cafeteria_id, day_key, buyer_name, buyer_email, payment_status, delivery_status")
+    .select("id, cafeteria_id, day_key, buyer_name, buyer_email, payment_status, delivery_status, tracking_token")
     .eq("id", orderId)
     .eq("cafeteria_id", cafeteriaId)
     .eq("day_key", dayKey)
@@ -96,13 +96,17 @@ export async function findById(orderId, cafeteriaId, dayKey) {
 }
 
 // Advances the delivery workflow for one order.
+// Sets the matching timestamp column so the buyer tracking page can show precise times.
 export async function updateDelivery(orderId, cafeteriaId, deliveryStatus) {
+  const now    = new Date().toISOString();
+  const update = { delivery_status: deliveryStatus };
+  if (deliveryStatus === "EN_PREPARACION")     update.prepared_at  = now;
+  if (deliveryStatus === "LISTO_PARA_ENTREGA") update.ready_at     = now;
+  if (deliveryStatus === "ENTREGADO")          update.delivered_at = now;
+
   const { error } = await supabase
     .from("orders")
-    .update({
-      delivery_status: deliveryStatus,
-      delivered_at: deliveryStatus === "ENTREGADO" ? new Date().toISOString() : null
-    })
+    .update(update)
     .eq("id", orderId)
     .eq("cafeteria_id", cafeteriaId);
 
@@ -110,14 +114,18 @@ export async function updateDelivery(orderId, cafeteriaId, deliveryStatus) {
 }
 
 // Updates payment status. Only ADMIN may call this (enforced at the API layer).
-export async function updatePayment(orderId, cafeteriaId, paymentStatus) {
+// verifiedByUserId is stored for accounting: who confirmed the SINPE transfer and when.
+export async function updatePayment(orderId, cafeteriaId, paymentStatus, verifiedByUserId = null) {
   const isConfirming = PAID_STATUSES.includes(paymentStatus);
+  const update = {
+    payment_status:       paymentStatus,
+    payment_confirmed_at: isConfirming ? new Date().toISOString() : null
+  };
+  if (isConfirming && verifiedByUserId) update.payment_verified_by = verifiedByUserId;
+
   const { error } = await supabase
     .from("orders")
-    .update({
-      payment_status:       paymentStatus,
-      payment_confirmed_at: isConfirming ? new Date().toISOString() : null
-    })
+    .update(update)
     .eq("id", orderId)
     .eq("cafeteria_id", cafeteriaId);
 

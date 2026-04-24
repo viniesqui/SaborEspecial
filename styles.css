@@ -413,6 +413,19 @@ textarea {
   border-color: var(--primary-dark);
 }
 
+/* SINPE orders awaiting manual payment confirmation */
+.delivery-table__row.is-sinpe-pending {
+  background: #fffbec;
+  border-left: 3px solid #c89a00;
+}
+
+.delivery-action--sinpe-verify {
+  background: #fffbec;
+  border-color: #c89a00;
+  color: #7a5c00;
+  font-weight: 700;
+}
+
 .delivery-table {
   display: grid;
   gap: 0.3rem;

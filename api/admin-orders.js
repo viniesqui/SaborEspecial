@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { cafeteriaId } = await requireAuth(req, ["ADMIN"]);
+    const { cafeteriaId, userId } = await requireAuth(req, ["ADMIN"]);
     const action          = String(req.body?.action || "list");
     const dayKey          = getDayKey();
 
@@ -69,21 +69,27 @@ export default async function handler(req, res) {
         return res.status(400).json({ ok: false, message: "Pedido inválido." });
       }
 
-      await updatePayment(orderId, cafeteriaId, paymentStatus);
+      // userId is stored for accounting: which admin confirmed the SINPE transfer.
+      await updatePayment(orderId, cafeteriaId, paymentStatus, userId);
 
       if (paymentStatus === "PAGADO") {
         const { data: row } = await supabase
           .from("orders")
-          .select("buyer_name, buyer_email")
+          .select("buyer_name, buyer_email, tracking_token")
           .eq("id", orderId)
           .maybeSingle();
 
         if (row?.buyer_email) {
+          const appBaseUrl  = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+          const trackingUrl = appBaseUrl && row.tracking_token
+            ? `${appBaseUrl}/track.html?token=${row.tracking_token}`
+            : "";
           sendOrderStatusEmail({
-            to:        row.buyer_email,
-            buyerName: row.buyer_name,
+            to:         row.buyer_email,
+            buyerName:  row.buyer_name,
             orderId,
-            status:    paymentStatus
+            status:     paymentStatus,
+            trackingUrl
           }).catch(() => null);
         }
       }

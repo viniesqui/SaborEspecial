@@ -100,6 +100,8 @@
 
     if (els.timeSolicitado) els.timeSolicitado.textContent = formatTime(order.created_at);
     if (els.timePago)       els.timePago.textContent       = formatTime(order.payment_confirmed_at);
+    if (els.timePrep)       els.timePrep.textContent       = formatTime(order.prepared_at);
+    if (els.timeListo)      els.timeListo.textContent      = formatTime(order.ready_at);
     if (els.timeEntregado)  els.timeEntregado.textContent  = formatTime(order.delivered_at);
   }
 
