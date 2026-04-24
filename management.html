@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión | Almuerzos CEEP</title>
+  <meta name="description" content="Panel de gestión para administradores y asistentes.">
+  <meta name="theme-color" content="#a33d4d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
+  <div class="site-shell">
+
+    <header class="site-header">
+      <a href="./management.html" class="site-brand" id="brandLink">Almuerzos CEEP</a>
+      <nav class="site-nav" aria-label="Principal">
+        <button type="button" id="mgmtLogoutButton" class="site-nav__link site-nav__button">Salir</button>
+      </nav>
+    </header>
+
+    <main class="admin-layout">
+
+      <section class="admin-hero">
+        <h1 id="mgmtPageTitle">Gestión</h1>
+      </section>
+
+      <!-- ── ADMIN TABS (hidden for HELPER) ──────────────────────── -->
+      <nav class="admin-tabs admin-only" id="mgmtTabs" aria-label="Secciones del panel" hidden>
+        <button class="admin-tab is-active" data-tab="mgmtOperationsTab" type="button">Operaciones</button>
+        <button class="admin-tab"           data-tab="mgmtInsightsTab"   type="button">Análisis</button>
+      </nav>
+
+      <!-- ================================================================
+           OPERATIONS TAB  (visible to both roles; insights only for ADMIN)
+           ================================================================ -->
+      <section id="mgmtOperationsTab" class="admin-content">
+
+        <!-- Menu form — both roles -->
+        <section class="card admin-card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Formulario</p>
+              <h2>Menú de hoy</h2>
+            </div>
+            <div class="admin-actions">
+              <span id="mgmtUpdatedAt" class="muted">Sincronizando...</span>
+              <!-- Export button — ADMIN only -->
+              <button id="mgmtExportButton" type="button" class="button button--ghost admin-only" hidden>Exportar Excel</button>
+            </div>
+          </div>
+
+          <form id="mgmtMenuForm" class="form">
+            <label>
+              Nombre del menú
+              <input id="mgmtMenuTitle" name="title" type="text" maxlength="120" required>
+            </label>
+            <label>
+              Descripción
+              <textarea id="mgmtMenuDescription" name="description" rows="4" maxlength="250" required></textarea>
+            </label>
+            <label>
+              Precio en colones
+              <input id="mgmtMenuPrice" name="price" type="number" min="0" step="1" required>
+            </label>
+            <button id="mgmtMenuSubmit" type="submit" class="button">Guardar menú de hoy</button>
+            <p id="mgmtMenuFeedback" class="feedback" aria-live="polite"></p>
+            <p id="mgmtEmailWarning" class="email-warning" hidden></p>
+          </form>
+        </section>
+
+        <!-- Current menu summary — ADMIN only -->
+        <section class="card admin-card admin-card--summary admin-only" hidden>
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Vista actual</p>
+              <h2 id="mgmtCurrentMenuTitle">Cargando menú...</h2>
+            </div>
+            <div class="availability">
+              <span class="availability__label">Disponibles</span>
+              <strong id="mgmtAvailableMeals">0</strong>
+            </div>
+          </div>
+          <p id="mgmtCurrentMenuDescription" class="menu-description">Esperando datos del servidor.</p>
+          <div class="menu-details">
+            <div><span class="detail-label">Precio</span>   <strong id="mgmtCurrentMenuPrice">-</strong></div>
+            <div><span class="detail-label">Venta</span>    <strong id="mgmtSalesWindow">-</strong></div>
+            <div><span class="detail-label">Entrega</span>  <strong id="mgmtDeliveryWindow">-</strong></div>
+          </div>
+        </section>
+
+        <!-- Delivery stats — HELPER only -->
+        <section class="card delivery-summary-card helper-only" hidden>
+          <div class="delivery-summary-grid">
+            <article class="delivery-summary"><span>PEDIDOS</span>          <strong id="mgmtTotalOrders">0</strong></article>
+            <article class="delivery-summary"><span>PAGO PENDIENTE</span>   <strong id="mgmtPendingPayment">0</strong></article>
+            <article class="delivery-summary"><span>PAGADOS</span>          <strong id="mgmtPaidOrders">0</strong></article>
+            <article class="delivery-summary"><span>ENTREGADOS</span>       <strong id="mgmtDeliveredOrders">0</strong></article>
+            <article class="delivery-summary"><span>PENDIENTES</span>       <strong id="mgmtPendingDeliveries" class="delivery-summary__alert">0</strong></article>
+          </div>
+        </section>
+
+        <!-- ADMIN: payment-control orders table -->
+        <section class="card admin-card admin-orders-card admin-only" hidden>
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Pedidos del día</p>
+              <h2>Control de pagos</h2>
+            </div>
+            <div class="admin-orders-summary">
+              <span>Total: <strong id="mgmtAdminTotal">0</strong></span>
+              <span>Pagados: <strong id="mgmtAdminPaid">0</strong></span>
+              <span>Pendientes: <strong id="mgmtAdminPending">0</strong></span>
+            </div>
+          </div>
+          <div class="admin-orders-table">
+            <div class="admin-orders-table__head">
+              <span>Cliente</span><span>Solicitud</span><span>Método</span>
+              <span>Estado del pago</span><span>Confirmado</span><span>Acciones</span>
+            </div>
+            <div id="mgmtAdminOrdersList" class="admin-orders-table__body">
+              <div class="admin-orders-table__empty">No hay pedidos registrados hoy.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- HELPER: delivery-workflow orders table -->
+        <section class="card delivery-table-card helper-deliveries-card helper-only" hidden>
+          <div class="delivery-table">
+            <div class="delivery-table__head">
+              <span>PEDIDO</span><span>SOLICITUD</span>
+              <span>ESTADO DEL PAGO</span><span>PENDIENTE</span><span>ENTREGADO</span>
+            </div>
+            <div id="mgmtHelperOrdersList" class="delivery-table__body">
+              <div class="delivery-table__empty">No hay compras registradas todavía.</div>
+            </div>
+          </div>
+        </section>
+
+      </section><!-- /mgmtOperationsTab -->
+
+      <!-- ================================================================
+           INSIGHTS TAB — ADMIN only
+           ================================================================ -->
+      <section id="mgmtInsightsTab" class="admin-content admin-only" hidden>
+
+        <section class="card admin-card insights-full-width">
+          <div class="section-title">
+            <div><p class="eyebrow">Producción del día</p><h2>Lista de Preparación</h2></div>
+            <span id="mgmtInsightsUpdatedAt" class="muted">Cargando...</span>
+          </div>
+          <div id="mgmtPrepList"><p class="insights-empty">Cargando datos de producción...</p></div>
+        </section>
+
+        <section class="card admin-card">
+          <div class="section-title"><div><p class="eyebrow">Predicción histórica</p><h2>Demanda del día</h2></div></div>
+          <div id="mgmtForecast"><p class="insights-empty">Cargando predicción...</p></div>
+        </section>
+
+        <section class="card admin-card">
+          <div class="section-title"><div><p class="eyebrow">Últimas 4 semanas</p><h2>Picos de demanda</h2></div></div>
+          <div id="mgmtHeatmap"><p class="insights-empty">Cargando heatmap...</p></div>
+        </section>
+
+        <section class="card admin-card insights-full-width">
+          <div class="section-title"><div><p class="eyebrow">Historial financiero</p><h2>Resumen Semanal</h2></div></div>
+          <div id="mgmtWeekly"><p class="insights-empty">Cargando resumen financiero...</p></div>
+        </section>
+
+      </section><!-- /mgmtInsightsTab -->
+
+    </main>
+
+    <footer class="site-footer">
+      © 2026 · Todos los derechos reservados · Desarrollado por Cristian Ramírez
+    </footer>
+  </div>
+
+  <!-- ── ADMIN order row template ─────────────────────────────────── -->
+  <template id="adminOrderRowTemplate">
+    <article class="admin-orders-table__row">
+      <div class="admin-orders-table__cell">
+        <strong class="admin-order-name"></strong>
+        <p    class="admin-order-meta"></p>
+      </div>
+      <div class="admin-orders-table__cell"><p class="admin-order-date"></p></div>
+      <div class="admin-orders-table__cell"><span class="admin-order-method"></span></div>
+      <div class="admin-orders-table__cell"><span class="admin-order-status"></span></div>
+      <div class="admin-orders-table__cell"><p class="admin-order-confirmed-at"></p></div>
+      <div class="admin-orders-table__cell">
+        <div class="admin-order-actions">
+          <button type="button" class="payment-toggle" data-payment-status="PENDIENTE_DE_PAGO">Pendiente</button>
+          <button type="button" class="payment-toggle" data-payment-status="PAGADO">Pagado</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <!-- ── HELPER order row template ────────────────────────────────── -->
+  <template id="helperOrderRowTemplate">
+    <article class="delivery-table__row">
+      <div class="delivery-table__cell">
+        <strong class="buyer-name delivery-name-card"></strong>
+        <p class="delivery-order-meta"></p>
+      </div>
+      <div class="delivery-table__cell">
+        <span class="delivery-order-status-pill helper-order-status"></span>
+        <p    class="delivery-status-time helper-created-at"></p>
+      </div>
+      <div class="delivery-table__cell">
+        <span class="delivery-payment-status helper-payment-status"></span>
+        <p    class="delivery-status-time helper-payment-confirmed-at"></p>
+      </div>
+      <div class="delivery-table__cell">
+        <button type="button" class="delivery-action helper-delivery-action" data-delivery-status="PENDIENTE_ENTREGA">Pendiente</button>
+      </div>
+      <div class="delivery-table__cell">
+        <button type="button" class="delivery-action helper-delivery-action" data-delivery-status="ENTREGADO">Entregado</button>
+        <p class="delivery-status-time helper-delivered-at">-</p>
+      </div>
+    </article>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="./config.js"></script>
+  <script src="./supabase-client.js"></script>
+  <script src="./shared/status-banner.js"></script>
+  <script src="./shared/api-client.js"></script>
+  <script src="./shared/formatters.js"></script>
+  <script src="./management.js" defer></script>
+</body>
+</html>

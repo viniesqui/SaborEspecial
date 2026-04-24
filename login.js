@@ -1,14 +1,9 @@
 (function () {
   "use strict";
 
-  const config = window.APP_CONFIG || {};
-  const ROLE_ROUTE_MAP = {
-    ADMIN:  "./admin.html",
-    HELPER: "./helper.html",
-    ORDERS: "./deliveries.html"
-  };
+  var config = window.APP_CONFIG || {};
 
-  const els = {
+  var els = {
     form:     document.getElementById("loginForm"),
     email:    document.getElementById("loginEmail"),
     password: document.getElementById("loginPassword"),
@@ -24,8 +19,8 @@
   async function submitLogin(event) {
     event.preventDefault();
 
-    const email    = String(els.email.value    || "").trim();
-    const password = String(els.password.value || "").trim();
+    var email    = String(els.email.value    || "").trim();
+    var password = String(els.password.value || "").trim();
 
     if (!email || !password) {
       setFeedback("Ingrese su correo y contraseña.", true);
@@ -36,29 +31,28 @@
     setFeedback("Verificando acceso...", false);
 
     try {
-      // 1. Authenticate with Supabase — returns a session with access_token.
-      const { data: authData, error: authError } =
-        await window.supabaseClient.auth.signInWithPassword({ email, password });
+      // 1. Authenticate — returns a session with access_token.
+      var authResult = await window.supabaseClient.auth.signInWithPassword({ email: email, password: password });
+      var authError  = authResult.error;
+      var authData   = authResult.data;
 
       if (authError || !authData.session) {
-        throw new Error(authError?.message || "Credenciales incorrectas.");
+        throw new Error((authError && authError.message) || "Credenciales incorrectas.");
       }
 
-      const token = authData.session.access_token;
+      var token = authData.session.access_token;
 
-      // 2. Fetch the user's cafeteria role from our API.
-      //    /api/auth-role verifies the JWT server-side and reads cafeteria_users.
-      const res = await fetch(config.apiBaseUrl + "/auth-role", {
+      // 2. Resolve role + redirect route from the server.
+      var res     = await fetch(config.apiBaseUrl + "/auth-role", {
         headers: { "Authorization": "Bearer " + token }
       });
+      var payload = await res.json().catch(function () { return null; });
 
-      const payload = await res.json().catch(function () { return null; });
-      if (!res.ok || !payload?.ok) {
+      if (!res.ok || !payload || !payload.ok) {
         throw new Error((payload && payload.message) || "No fue posible determinar el rol.");
       }
 
-      // 3. Supabase persists the session automatically in localStorage.
-      //    No password or role is stored manually — just redirect.
+      // route is returned by the server; no client-side ROLE_ROUTE_MAP needed.
       window.location.replace(payload.route);
     } catch (error) {
       setFeedback(error.message, true);
@@ -66,23 +60,24 @@
     }
   }
 
-  // If a valid Supabase session already exists, skip the login form.
+  // Skip login if a valid session already exists.
   async function redirectIfAuthenticated() {
     if (!window.supabaseClient) return;
 
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    var sessionResult = await window.supabaseClient.auth.getSession();
+    var session       = sessionResult.data && sessionResult.data.session;
     if (!session) return;
 
     try {
-      const res = await fetch(config.apiBaseUrl + "/auth-role", {
+      var res     = await fetch(config.apiBaseUrl + "/auth-role", {
         headers: { "Authorization": "Bearer " + session.access_token }
       });
-      const payload = await res.json().catch(function () { return null; });
-      if (payload?.ok && ROLE_ROUTE_MAP[payload.role]) {
+      var payload = await res.json().catch(function () { return null; });
+      if (payload && payload.ok && payload.route) {
         window.location.replace(payload.route);
       }
     } catch (_) {
-      // Session exists but role lookup failed — stay on login page.
+      // Session exists but role lookup failed — stay on login.
     }
   }
 

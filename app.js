@@ -1,171 +1,104 @@
 (function () {
   "use strict";
 
-  const config = window.APP_CONFIG || {};
-  const SESSION_KEY = "ceep-role-session";
-  const state = {
-    snapshot: null,
-    isSubmitting: false
+  var config  = window.APP_CONFIG || {};
+  var banner  = window.SE.banner;
+  var fmt     = window.SE.fmt;
+  // Public endpoints don't send a Bearer token.
+  var api     = window.SE.api.make(null);
+
+  var slug    = String(config.cafeteriaSlug || "ceep");
+  var state   = { snapshot: null, isSubmitting: false };
+
+  var els = {
+    menuTitle:         document.getElementById("menuTitle"),
+    menuDescription:   document.getElementById("menuDescription"),
+    menuPrice:         document.getElementById("menuPrice"),
+    dailyMessage:      document.getElementById("dailyMessage"),
+    availableCount:    document.getElementById("availableCount"),
+    buyersList:        document.getElementById("buyersList"),
+    orderForm:         document.getElementById("orderForm"),
+    submitButton:      document.getElementById("submitButton"),
+    formFeedback:      document.getElementById("formFeedback"),
+    paymentMethodInput:document.getElementById("paymentMethod"),
+    paymentOptions:    Array.from(document.querySelectorAll(".payment-option")),
+    buyerRowTemplate:  document.getElementById("buyerRowTemplate"),
+    logoutButton:      document.getElementById("logoutButton"),
+    trackingLinkSection:document.getElementById("trackingLinkSection"),
+    trackingLink:      document.getElementById("trackingLink")
   };
 
-  const els = {
-    menuTitle: document.getElementById("menuTitle"),
-    menuDescription: document.getElementById("menuDescription"),
-    menuPrice: document.getElementById("menuPrice"),
-    dailyMessage: document.getElementById("dailyMessage"),
-    availableCount: document.getElementById("availableCount"),
-    buyersList: document.getElementById("buyersList"),
-    orderForm: document.getElementById("orderForm"),
-    submitButton: document.getElementById("submitButton"),
-    formFeedback: document.getElementById("formFeedback"),
-    paymentMethodInput: document.getElementById("paymentMethod"),
-    paymentOptions: Array.from(document.querySelectorAll(".payment-option")),
-    buyerRowTemplate: document.getElementById("buyerRowTemplate"),
-    logoutButton: document.getElementById("logoutButton"),
-    trackingLinkSection: document.getElementById("trackingLinkSection"),
-    trackingLink: document.getElementById("trackingLink")
-  };
+  // ── Cache helpers ─────────────────────────────────────────────────
 
-  function getSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
-    }
+  function loadCached() {
+    try { return JSON.parse(localStorage.getItem(config.cacheKey)); }
+    catch (_) { return null; }
   }
 
-  function requireCustomerSession() {
-    const session = getSession();
-    if (!session || session.role !== "CUSTOMER") {
-      window.location.replace("./index.html");
-      return false;
-    }
-    return true;
+  function saveCache(snapshot) {
+    try { localStorage.setItem(config.cacheKey, JSON.stringify(snapshot)); }
+    catch (_) {}
   }
 
-  function logout() {
-    sessionStorage.removeItem(SESSION_KEY);
-    window.location.replace("./index.html");
-  }
-
-  function formatCurrency(amount) {
-    return new Intl.NumberFormat("es-CR", {
-      style: "currency",
-      currency: "CRC",
-      maximumFractionDigits: 0
-    }).format(Number(amount || 0));
-  }
+  // ── Feedback ──────────────────────────────────────────────────────
 
   function setFeedback(message, isError) {
     els.formFeedback.textContent = message || "";
     els.formFeedback.style.color = isError ? "#842f3d" : "#705d52";
   }
 
-  function loadCachedSnapshot() {
-    try {
-      const raw = localStorage.getItem(config.cacheKey);
-      return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-      return null;
-    }
-  }
+  // ── Render ────────────────────────────────────────────────────────
 
-  function saveCachedSnapshot(snapshot) {
-    try {
-      localStorage.setItem(config.cacheKey, JSON.stringify(snapshot));
-    } catch (error) {
-      console.warn("No se pudo guardar el cache local.", error);
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Online / Offline + Sync status banner
-  // -----------------------------------------------------------------------
-
-  function initStatusBanner() {
-    const banner = document.getElementById("statusBanner");
-    if (!banner) return;
-
-    function update() {
-      if (!navigator.onLine) {
-        banner.dataset.state = "offline";
-        banner.textContent = "Sin conexión — mostrando datos guardados";
-      } else {
-        if (banner.dataset.state === "offline") {
-          delete banner.dataset.state;
-          banner.textContent = "";
-        }
-      }
+  function renderBuyers(orders) {
+    els.buyersList.innerHTML = "";
+    if (!orders || !orders.length) {
+      els.buyersList.innerHTML = '<div class="delivery-table__empty">No hay compras registradas todavía.</div>';
+      return;
     }
 
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    update();
+    var fragment = document.createDocumentFragment();
+    orders.forEach(function (order) {
+      var node       = els.buyerRowTemplate.content.cloneNode(true);
+      var payLabel   = fmt.paymentLabel(order.paymentStatus);
+
+      node.querySelector(".buyer-name").textContent           = order.buyerName;
+      node.querySelector(".buyer-meta").textContent           = [order.paymentMethod, payLabel, order.timestampLabel].filter(Boolean).join(" | ");
+      node.querySelector(".customer-order-status").textContent= order.orderStatus || "SOLICITADO";
+      node.querySelector(".customer-created-at").textContent  = order.createdAtLabel || order.timestampLabel || "";
+
+      var payNode = node.querySelector(".customer-payment-status");
+      payNode.textContent = payLabel;
+      payNode.className   = fmt.paymentClass(order.paymentStatus) + " customer-payment-status";
+
+      node.querySelector(".customer-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
+
+      var delivery = order.deliveryStatus || "PENDIENTE_ENTREGA";
+      var isDone   = delivery === "ENTREGADO" || delivery === "LISTO_PARA_ENTREGA";
+      var badgeNode = node.querySelector(".customer-delivery-badge");
+      var LABELS    = { ENTREGADO: "Entregado", LISTO_PARA_ENTREGA: "Listo para Entrega", EN_PREPARACION: "En Preparación", PENDIENTE_ENTREGA: "Solicitado" };
+      badgeNode.textContent = LABELS[delivery] || "Solicitado";
+      badgeNode.className   = (isDone ? "delivery-action is-selected" : "delivery-action") + " customer-delivery-badge";
+
+      node.querySelector(".customer-delivered-at").textContent = order.deliveredAtLabel || "";
+      fragment.appendChild(node);
+    });
+    els.buyersList.appendChild(fragment);
   }
 
-  function setBannerSyncing() {
-    const banner = document.getElementById("statusBanner");
-    if (!banner) return;
-    banner.dataset.state = "syncing";
-    banner.textContent = "Sincronizando...";
-  }
+  function renderSnapshot(snapshot) {
+    state.snapshot = snapshot;
+    var menu = snapshot.menu || {};
+    els.menuTitle.textContent       = menu.title       || "Menú no configurado";
+    els.menuDescription.textContent = menu.description || "No hay descripción disponible.";
+    els.menuPrice.textContent       = fmt.currency(menu.price);
+    els.dailyMessage.textContent    = snapshot.message || "";
+    els.availableCount.textContent  = String(snapshot.availableMeals || 0);
+    renderBuyers(snapshot.orders || []);
 
-  function setBannerSynced() {
-    const banner = document.getElementById("statusBanner");
-    if (!banner) return;
-    banner.dataset.state = "synced";
-    const t = new Date().toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
-    banner.textContent = "Sincronizado a las " + t;
-    setTimeout(function () {
-      delete banner.dataset.state;
-      banner.textContent = "";
-    }, 3000);
-  }
-
-  function setBannerError(retryFn) {
-    const banner = document.getElementById("statusBanner");
-    if (!banner) return;
-    banner.dataset.state = "error";
-    banner.textContent = "Error al sincronizar — toca para reintentar";
-    banner.onclick = function () {
-      banner.onclick = null;
-      if (retryFn) retryFn();
-    };
-  }
-
-  function getPaymentClass(paymentStatus) {
-    return String(paymentStatus || "").toUpperCase() === "PAGADO"
-      ? "delivery-payment-status delivery-payment-status--paid customer-payment-status"
-      : "delivery-payment-status delivery-payment-status--pending customer-payment-status";
-  }
-
-  function getPaymentLabel(paymentStatus) {
-    const normalized = String(paymentStatus || "").toUpperCase();
-    if (normalized === "PAGADO") return "PAGADO";
-    if (normalized === "PENDIENTE_DE_PAGO" || normalized === "POR_VERIFICAR") return "PENDIENTE DE PAGO";
-    return normalized.replaceAll("_", " ") || "PENDIENTE DE PAGO";
-  }
-
-  const DELIVERY_STATUS_LABELS = {
-    ENTREGADO:          "Entregado",
-    LISTO_PARA_ENTREGA: "Listo para Entrega",
-    EN_PREPARACION:     "En Preparación",
-    PENDIENTE_ENTREGA:  "Solicitado"
-  };
-
-  const DELIVERY_STATUS_DONE = new Set(["ENTREGADO", "LISTO_PARA_ENTREGA"]);
-
-  function getDeliveryBadge(deliveryStatus) {
-    const key  = String(deliveryStatus || "").toUpperCase();
-    const text = DELIVERY_STATUS_LABELS[key] || "Solicitado";
-    const done = DELIVERY_STATUS_DONE.has(key);
-    return {
-      text,
-      className: done
-        ? "delivery-action is-selected customer-delivery-badge"
-        : "delivery-action customer-delivery-badge"
-    };
+    var canBuy = Boolean(snapshot.isSalesOpen) && Number(snapshot.availableMeals || 0) > 0;
+    els.submitButton.disabled = !canBuy || state.isSubmitting;
+    if (!canBuy) setFeedback("La venta está cerrada o ya se alcanzó el máximo diario.", false);
+    else if (!state.isSubmitting) setFeedback("", false);
   }
 
   function showTrackingLink(trackingUrl) {
@@ -175,219 +108,114 @@
     els.trackingLinkSection.hidden = false;
   }
 
-  function renderBuyers(orders) {
-    els.buyersList.innerHTML = "";
-
-    if (!orders || orders.length === 0) {
-      els.buyersList.innerHTML = '<div class="delivery-table__empty">No hay compras registradas todavía.</div>';
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-    orders.forEach((order) => {
-      const node = els.buyerRowTemplate.content.cloneNode(true);
-      const paymentLabel = getPaymentLabel(order.paymentStatus);
-      node.querySelector(".buyer-name").textContent = order.buyerName;
-      node.querySelector(".buyer-meta").textContent =
-        [order.paymentMethod, paymentLabel, order.timestampLabel].filter(Boolean).join(" | ");
-      node.querySelector(".customer-order-status").textContent = order.orderStatus || "SOLICITADO";
-      node.querySelector(".customer-created-at").textContent = order.createdAtLabel || order.timestampLabel || "";
-
-      const paymentNode = node.querySelector(".customer-payment-status");
-      paymentNode.textContent = paymentLabel;
-      paymentNode.className = getPaymentClass(order.paymentStatus);
-      node.querySelector(".customer-payment-confirmed-at").textContent = order.paymentConfirmedAtLabel || "";
-
-      const delivery = getDeliveryBadge(order.deliveryStatus);
-      const deliveryNode = node.querySelector(".customer-delivery-badge");
-      deliveryNode.textContent = delivery.text;
-      deliveryNode.className = delivery.className;
-      node.querySelector(".customer-delivered-at").textContent = order.deliveredAtLabel || "";
-
-      fragment.appendChild(node);
-    });
-
-    els.buyersList.appendChild(fragment);
-  }
-
-  function renderSnapshot(snapshot) {
-    state.snapshot = snapshot;
-
-    const menu = snapshot.menu || {};
-    els.menuTitle.textContent = menu.title || "Menú no configurado";
-    els.menuDescription.textContent = menu.description || "No hay descripción disponible.";
-    els.menuPrice.textContent = formatCurrency(menu.price);
-    els.dailyMessage.textContent = snapshot.message || "Ofrecemos hasta 15 almuerzos diarios, según la asistencia de los niños y la disponibilidad autorizada por el MEP.";
-
-    els.availableCount.textContent = String(snapshot.availableMeals || 0);
-    renderBuyers(snapshot.orders || []);
-
-    const canBuy = Boolean(snapshot.isSalesOpen) && Number(snapshot.availableMeals || 0) > 0;
-    els.submitButton.disabled = !canBuy || state.isSubmitting;
-    if (!canBuy) {
-      setFeedback("La venta está cerrada o ya se alcanzó el máximo diario.", false);
-    } else if (!state.isSubmitting) {
-      setFeedback("", false);
-    }
-  }
-
-  async function fetchJson(path, options) {
-    if (!config.apiBaseUrl || config.apiBaseUrl.includes("PEGUE_AQUI")) {
-      throw new Error("Debe configurar la URL del backend en config.js");
-    }
-
-    const requestOptions = {
-      method: options && options.method ? options.method : "GET"
-    };
-
-    if (options && options.body) {
-      requestOptions.headers = {
-        "Content-Type": "application/json"
-      };
-      requestOptions.body = JSON.stringify(options.body);
-    }
-
-    const response = await fetch(config.apiBaseUrl + path, requestOptions);
-
-    const payload = await response.json().catch(function () {
-      return null;
-    });
-
-    if (!response.ok) {
-      throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
-    }
-
-    return payload;
-  }
+  // ── Network ───────────────────────────────────────────────────────
 
   async function refreshSnapshot(showErrors) {
     try {
-      const snapshot = await fetchJson("/dashboard");
-      saveCachedSnapshot(snapshot);
+      var snapshot = await api.fetchJson("/dashboard?slug=" + encodeURIComponent(slug));
+      saveCache(snapshot);
       renderSnapshot(snapshot);
-      setBannerSynced();
-    } catch (error) {
-      const cached = loadCachedSnapshot();
-      if (cached) {
-        renderSnapshot(cached);
-      }
-      if (!navigator.onLine) {
-        // offline banner already shown by initStatusBanner
-      } else if (showErrors) {
-        setFeedback(error.message, true);
-        setBannerError(function () { refreshSnapshot(true); });
+      banner.setSynced();
+    } catch (err) {
+      var cached = loadCached();
+      if (cached) renderSnapshot(cached);
+      if (!navigator.onLine) return;
+      if (showErrors) {
+        setFeedback(err.message, true);
+        banner.setError(function () { refreshSnapshot(true); });
       }
     }
-  }
-
-  function getFormPayload() {
-    const formData = new FormData(els.orderForm);
-    return {
-      buyerName: String(formData.get("buyerName") || "").trim(),
-      buyerEmail: String(formData.get("buyerEmail") || "").trim().toLowerCase(),
-      paymentMethod: String(formData.get("paymentMethod") || "").trim()
-    };
-  }
-
-  function selectPaymentMethod(method) {
-    els.paymentMethodInput.value = method || "";
-    els.paymentOptions.forEach(function (button) {
-      const isSelected = button.dataset.paymentMethod === method;
-      button.classList.toggle("is-selected", isSelected);
-      button.setAttribute("aria-pressed", isSelected ? "true" : "false");
-    });
   }
 
   async function submitOrder(event) {
     event.preventDefault();
-
     if (state.isSubmitting) return;
 
-    const payload = getFormPayload();
+    var fd     = new FormData(els.orderForm);
+    var payload = {
+      buyerName:     String(fd.get("buyerName")     || "").trim(),
+      buyerEmail:    String(fd.get("buyerEmail")     || "").trim().toLowerCase(),
+      paymentMethod: String(fd.get("paymentMethod")  || "").trim()
+    };
+
     if (!payload.buyerName || !payload.paymentMethod) {
       setFeedback("Complete todos los campos obligatorios.", true);
       return;
     }
 
-    state.isSubmitting = true;
+    state.isSubmitting      = true;
     els.submitButton.disabled = true;
     setFeedback("Registrando compra...", false);
-    setBannerSyncing();
+    banner.setSyncing();
 
     try {
-      const result = await fetchJson("/orders", {
+      var result = await api.fetchJson("/orders?slug=" + encodeURIComponent(slug), {
         method: "POST",
-        body: { order: payload }
+        body:   { order: payload }
       });
 
-      if (!result.ok) {
-        throw new Error(result.message || "No se pudo registrar la compra.");
-      }
+      if (!result.ok) throw new Error(result.message || "No se pudo registrar la compra.");
 
       els.orderForm.reset();
       selectPaymentMethod("");
       setFeedback(result.message || "Compra registrada correctamente.", false);
 
       if (result.trackingToken) {
-        const trackingUrl =
-          window.location.origin +
+        var trackingUrl = window.location.origin +
           window.location.pathname.replace(/[^/]*$/, "") +
           "track.html?token=" + encodeURIComponent(result.trackingToken);
         showTrackingLink(trackingUrl);
       }
 
-      if (result.snapshot) {
-        saveCachedSnapshot(result.snapshot);
-        renderSnapshot(result.snapshot);
-      } else {
-        await refreshSnapshot(false);
-      }
-    } catch (error) {
-      setFeedback(error.message, true);
-      setBannerError(null);
+      if (result.snapshot) { saveCache(result.snapshot); renderSnapshot(result.snapshot); }
+      else                 { await refreshSnapshot(false); }
+    } catch (err) {
+      setFeedback(err.message, true);
+      banner.setError(null);
     } finally {
       state.isSubmitting = false;
-      if (state.snapshot) {
-        renderSnapshot(state.snapshot);
-      } else {
-        els.submitButton.disabled = false;
-      }
+      if (state.snapshot) renderSnapshot(state.snapshot);
+      else                els.submitButton.disabled = false;
     }
   }
 
-  function registerServiceWorker() {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(function () {
-        return null;
-      });
-    }
+  function selectPaymentMethod(method) {
+    els.paymentMethodInput.value = method || "";
+    els.paymentOptions.forEach(function (btn) {
+      var sel = btn.dataset.paymentMethod === method;
+      btn.classList.toggle("is-selected", sel);
+      btn.setAttribute("aria-pressed", sel ? "true" : "false");
+    });
   }
+
+  // ── Init ──────────────────────────────────────────────────────────
 
   function start() {
-    if (!requireCustomerSession()) return;
-
-    const cached = loadCachedSnapshot();
-    if (cached) {
-      renderSnapshot(cached);
-    }
+    var cached = loadCached();
+    if (cached) renderSnapshot(cached);
 
     els.orderForm.addEventListener("submit", submitOrder);
-    els.paymentOptions.forEach(function (button) {
-      button.addEventListener("click", function () {
-        selectPaymentMethod(button.dataset.paymentMethod);
-      });
+    els.paymentOptions.forEach(function (btn) {
+      btn.addEventListener("click", function () { selectPaymentMethod(btn.dataset.paymentMethod); });
     });
     if (els.logoutButton) {
-      els.logoutButton.addEventListener("click", logout);
+      els.logoutButton.addEventListener("click", function () {
+        sessionStorage.removeItem("ceep-role-session");
+        window.location.replace("./index.html");
+      });
     }
 
-    initStatusBanner();
+    banner.init();
     refreshSnapshot(false);
-    window.setInterval(function () {
-      refreshSnapshot(false);
-    }, Number(config.refreshIntervalMs || 30000));
 
-    registerServiceWorker();
+    // Polling keeps the count fresh on slow/spotty connections.
+    // The interval is intentionally kept at 30 s here because the customer
+    // page has no Realtime connection (no Supabase auth in this view).
+    window.setInterval(function () { refreshSnapshot(false); }, Number(config.refreshIntervalMs || 30000));
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    }
   }
 
   start();
