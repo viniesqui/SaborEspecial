@@ -1,15 +1,16 @@
-import { getDb } from "../lib/mongodb.js";
-import { buildDashboardSnapshot, getDayKey, getTodayOrdersQuery } from "../lib/dashboard.js";
-import { handleOptions, setCors } from "../lib/http.js";
-import { requireAuth } from "../lib/auth.js";
+import { handleOptions, setCors }            from "../lib/http.js";
+import { getDayKey, buildDashboardSnapshot } from "../lib/dashboard.js";
+import { requireAuth }                       from "../lib/auth.js";
+import { upsert as upsertMenu, findActive }  from "../data/menus.repo.js";
+import { findToday, getStats }              from "../data/orders.repo.js";
+import { getSettings }                      from "../data/settings.repo.js";
 
 function validateMenu(menu) {
   if (!menu.title || !menu.description) {
     throw new Error("Faltan datos obligatorios del menu.");
   }
-
-  if (Number(menu.price) < 0) {
-    throw new Error("El precio no puede ser negativo.");
+  if (!Number.isFinite(Number(menu.price)) || Number(menu.price) < 0) {
+    throw new Error("El precio debe ser un número válido mayor o igual a 0.");
   }
 }
 
@@ -22,58 +23,40 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { role } = await requireAuth(req, ["ADMIN", "HELPER"]);
+    const { role, cafeteriaId } = await requireAuth(req, ["ADMIN", "HELPER"]);
 
-    const validateOnly = Boolean(req.body?.validateOnly);
-    if (validateOnly) {
+    // Used by the client to verify auth before rendering the form.
+    if (Boolean(req.body?.validateOnly)) {
       return res.status(200).json({ ok: true, message: "Acceso autorizado.", role });
     }
 
-    const menu = req.body?.menu || {};
-    validateMenu(menu);
+    const menuInput = req.body?.menu || {};
+    validateMenu(menuInput);
 
-    const db = await getDb();
     const dayKey = getDayKey();
 
-    await db.collection("menus").updateMany(
-      { active: true, dayKey: { $ne: dayKey } },
-      { $set: { active: false } }
-    );
+    const menu = await upsertMenu(cafeteriaId, dayKey, {
+      title:       String(menuInput.title).trim(),
+      description: String(menuInput.description).trim(),
+      price:       Number(menuInput.price)
+    });
 
-    await db.collection("menus").updateOne(
-      { dayKey },
-      {
-        $set: {
-          dayKey,
-          title:       String(menu.title).trim(),
-          description: String(menu.description).trim(),
-          price:       Number(menu.price || 0),
-          active:      true,
-          updatedAt:   new Date()
-        }
-      },
-      { upsert: true }
-    );
-
-    const settingsDoc = await db.collection("settings").findOne({ key: "app_config" });
-    const menuDoc     = await db.collection("menus").findOne({ dayKey, active: true });
-    const orders      = await db.collection("orders")
-      .find(getTodayOrdersQuery(dayKey))
-      .sort({ createdAt: 1 })
-      .toArray();
+    const [settings, freshMenu, orders, stats] = await Promise.all([
+      getSettings(cafeteriaId),
+      findActive(cafeteriaId, dayKey),
+      findToday(cafeteriaId, dayKey),
+      getStats(cafeteriaId, dayKey)
+    ]);
 
     return res.status(200).json({
-      ok: true,
-      message: "Menu del dia guardado correctamente.",
-      snapshot: buildDashboardSnapshot(settingsDoc || {}, menuDoc || {}, orders)
+      ok:       true,
+      message:  "Menu del dia guardado correctamente.",
+      snapshot: buildDashboardSnapshot(settings, freshMenu || menu, orders, stats)
     });
   } catch (error) {
     if (error.status) {
       return res.status(error.status).json({ ok: false, message: error.message });
     }
-    return res.status(400).json({
-      ok: false,
-      message: error.message || "No se pudo guardar el menu."
-    });
+    return res.status(400).json({ ok: false, message: error.message || "No se pudo guardar el menu." });
   }
 }

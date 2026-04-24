@@ -1,6 +1,27 @@
-import { supabase } from "../lib/supabase.js";
-import { buildDashboardSnapshot, getDayKey } from "../lib/dashboard.js";
-import { handleOptions, setCors } from "../lib/http.js";
+import { handleOptions, setCors }            from "../lib/http.js";
+import { getDayKey, buildDashboardSnapshot } from "../lib/dashboard.js";
+import { requireAuth }                       from "../lib/auth.js";
+import { findBySlug }                        from "../data/cafeterias.repo.js";
+import { findActive as findActiveMenu }      from "../data/menus.repo.js";
+import { findToday, getStats }              from "../data/orders.repo.js";
+import { getSettings }                      from "../data/settings.repo.js";
+
+// Resolves the cafeteria identity from either an auth token (staff views)
+// or a public ?slug= parameter (customer-facing page).
+async function resolveCafeteriaId(req) {
+  const authHeader = String(req.headers["authorization"] || "");
+  if (authHeader.startsWith("Bearer ")) {
+    const { cafeteriaId } = await requireAuth(req, ["ADMIN", "HELPER", "ORDERS"]);
+    return cafeteriaId;
+  }
+
+  const slug = String(req.query?.slug || "").toLowerCase().trim();
+  if (!slug) throw { status: 400, message: "Parámetro 'slug' requerido." };
+
+  const cafeteria = await findBySlug(slug);
+  if (!cafeteria) throw { status: 404, message: "Cafetería no encontrada." };
+  return cafeteria.id;
+}
 
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -10,25 +31,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
-  const cafeteriaId = process.env.CAFETERIA_ID;
-  if (!cafeteriaId) {
-    return res.status(500).json({ ok: false, message: "Cafetería no configurada." });
-  }
-
   try {
-    const dayKey = getDayKey();
+    const cafeteriaId = await resolveCafeteriaId(req);
+    const dayKey      = getDayKey();
 
-    const [{ data: settings }, { data: menu }, { data: orders }] = await Promise.all([
-      supabase.from("settings").select("*").eq("cafeteria_id", cafeteriaId).single(),
-      supabase.from("menus").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).eq("active", true).maybeSingle(),
-      supabase.from("orders").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey).neq("record_status", "CANCELADO").order("created_at", { ascending: true })
+    const [settings, menu, orders, stats] = await Promise.all([
+      getSettings(cafeteriaId),
+      findActiveMenu(cafeteriaId, dayKey),
+      findToday(cafeteriaId, dayKey),
+      getStats(cafeteriaId, dayKey)
     ]);
 
-    return res.status(200).json(buildDashboardSnapshot(settings || {}, menu || {}, orders || []));
+    return res.status(200).json(buildDashboardSnapshot(settings || {}, menu || {}, orders, stats));
   } catch (error) {
-    return res.status(500).json({
-      ok: false,
-      message: error.message || "Unexpected server error."
-    });
+    const status = error.status || 500;
+    return res.status(status).json({ ok: false, message: error.message || "Unexpected server error." });
   }
 }
