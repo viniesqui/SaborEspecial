@@ -22,7 +22,9 @@ export async function getStats(cafeteriaId, targetDate) {
     paidPendingDelivery: Number(row.paid_pending_delivery || 0),
     sinpeCount:          Number(row.sinpe_count           || 0),
     cashCount:           Number(row.cash_count            || 0),
-    totalAmount:         Number(row.total_amount          || 0)
+    totalAmount:         Number(row.total_amount          || 0),
+    digitalCount:        Number(row.digital_count         || 0),
+    walkInCount:         Number(row.walk_in_count         || 0)
   };
 }
 
@@ -35,7 +37,8 @@ export async function findToday(cafeteriaId, targetDate) {
     .select(
       "id, buyer_name, buyer_email, payment_method, payment_status, " +
       "delivery_status, order_status, created_at, target_date, " +
-      "payment_confirmed_at, delivered_at, menu_price, menu_title, tracking_token"
+      "payment_confirmed_at, delivered_at, menu_price, menu_title, tracking_token, " +
+      "order_channel, created_by_staff"
     )
     .eq("cafeteria_id", cafeteriaId)
     .eq("target_date", targetDate)
@@ -52,7 +55,7 @@ export async function findTodayForAdmin(cafeteriaId, targetDate) {
     .from("orders")
     .select(
       "id, buyer_name, buyer_phone, payment_method, payment_status, " +
-      "payment_reference, created_at, payment_confirmed_at"
+      "payment_reference, created_at, payment_confirmed_at, order_channel"
     )
     .eq("cafeteria_id", cafeteriaId)
     .eq("target_date", targetDate)
@@ -71,7 +74,7 @@ export async function findAll(cafeteriaId) {
       "id, buyer_name, buyer_phone, buyer_email, payment_method, payment_status, " +
       "payment_reference, menu_title, menu_description, menu_price, " +
       "order_status, delivery_status, record_status, created_at, target_date, " +
-      "payment_confirmed_at, delivered_at, day_key"
+      "payment_confirmed_at, delivered_at, day_key, order_channel, created_by_staff"
     )
     .eq("cafeteria_id", cafeteriaId)
     .order("created_at", { ascending: false });
@@ -150,11 +153,13 @@ export async function logDeliveryEvent(cafeteriaId, orderId, targetDate, deliver
 
 // Atomic order creation — delegates to the PostgreSQL RPC to prevent overselling.
 // targetDate is the date the lunch is ordered FOR (may differ from dayKey/today).
+// orderChannel distinguishes 'DIGITAL' (web) from 'WALK_IN' (staff POS).
 export async function createAtomic({
   cafeteriaId, dayKey, targetDate,
   buyerName, buyerEmail,
   menuId, menuTitle, menuDescription, menuPrice,
-  paymentMethod, trackingToken
+  paymentMethod, trackingToken,
+  orderChannel = "DIGITAL", createdByStaff = false
 }) {
   const { data, error } = await supabase.rpc("create_order_atomic", {
     p_cafeteria_id:     cafeteriaId,
@@ -167,7 +172,9 @@ export async function createAtomic({
     p_menu_description: menuDescription,
     p_menu_price:       menuPrice,
     p_payment_method:   String(paymentMethod).toUpperCase(),
-    p_tracking_token:   trackingToken
+    p_tracking_token:   trackingToken,
+    p_order_channel:    orderChannel,
+    p_created_by_staff: createdByStaff
   });
 
   if (error) throw error;

@@ -1792,3 +1792,175 @@ textarea {
   border-color: var(--secondary);
   color: var(--text);
 }
+
+/* ── Manual Sale Button & Hero Actions ──────────────────────── */
+
+.admin-hero__actions {
+  margin-top: 1.25rem;
+}
+
+.manual-sale-btn {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.85rem 1.5rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Walk-in Channel Badge ────────────────────────────────────── */
+
+.channel-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+}
+
+.channel-badge--walk-in {
+  background: rgba(159, 105, 24, 0.13);
+  color: var(--warning);
+  border: 1px solid rgba(159, 105, 24, 0.25);
+}
+
+/* ── Manual Sale Modal ────────────────────────────────────────── */
+
+.manual-sale-dialog {
+  border: 0;
+  border-radius: 20px;
+  padding: 0;
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(76, 47, 34, 0.18);
+  max-width: 440px;
+  width: calc(100% - 2rem);
+  overflow: hidden;
+}
+
+.manual-sale-dialog::backdrop {
+  background: rgba(45, 34, 28, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.manual-sale-dialog__header {
+  padding: 1.75rem 2rem 0;
+}
+
+.manual-sale-dialog__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.manual-sale-dialog__subtitle {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.manual-sale-dialog__form {
+  padding: 0 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.manual-sale-dialog__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.manual-sale-dialog__optional {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.manual-sale-dialog__input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--surface-strong);
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.manual-sale-dialog__input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.manual-sale-dialog__fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.manual-sale-dialog__legend {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 0.1rem;
+}
+
+.manual-sale-dialog__payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.manual-sale-payment-option {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(131, 47, 61, 0.22);
+  background: var(--surface-strong);
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.manual-sale-payment-option:hover {
+  background: #f6e2e5;
+}
+
+.manual-sale-payment-option.is-selected {
+  background: var(--primary-dark);
+  color: #fffaf5;
+  border-color: var(--primary-dark);
+}
+
+.manual-sale-dialog__actions {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.manual-sale-dialog__confirm {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.manual-sale-dialog__cancel {
+  font-size: 1rem;
+}
+
+.manual-sale-dialog__feedback {
+  margin: 0;
+  min-height: 1.4rem;
+  font-size: 0.9rem;
+}

@@ -41,6 +41,8 @@
     availableMeals:    document.getElementById("mgmtAvailableMeals"),
     salesWindow:       document.getElementById("mgmtSalesWindow"),
     deliveryWindow:    document.getElementById("mgmtDeliveryWindow"),
+    digitalCount:      document.getElementById("mgmtDigitalCount"),
+    walkInCount:       document.getElementById("mgmtWalkInCount"),
     // Admin orders
     adminTotal:        document.getElementById("mgmtAdminTotal"),
     adminPaid:         document.getElementById("mgmtAdminPaid"),
@@ -62,6 +64,15 @@
     forecast:          document.getElementById("mgmtForecast"),
     heatmap:           document.getElementById("mgmtHeatmap"),
     weekly:            document.getElementById("mgmtWeekly"),
+    // Manual sale modal
+    manualSaleButton:   document.getElementById("mgmtManualSaleButton"),
+    manualSaleDialog:   document.getElementById("manualSaleDialog"),
+    manualSaleForm:     document.getElementById("manualSaleForm"),
+    manualSaleName:     document.getElementById("manualSaleName"),
+    manualSaleMethod:   document.getElementById("manualSaleMethod"),
+    manualSaleSubmit:   document.getElementById("manualSaleSubmit"),
+    manualSaleCancel:   document.getElementById("manualSaleCancel"),
+    manualSaleFeedback: document.getElementById("manualSaleFeedback"),
     // Logout
     logoutButton:      document.getElementById("mgmtLogoutButton")
   };
@@ -221,12 +232,16 @@
     if (els.availableMeals)     els.availableMeals.textContent    = String(snapshot.availableMeals || 0);
     if (els.salesWindow)        els.salesWindow.textContent       = snapshot.salesWindow    || "-";
     if (els.deliveryWindow)     els.deliveryWindow.textContent    = snapshot.deliveryWindow || "-";
+    if (els.digitalCount)       els.digitalCount.textContent      = String(snapshot.digitalCount || 0);
+    if (els.walkInCount)        els.walkInCount.textContent       = String(snapshot.walkInCount  || 0);
   }
 
   function renderAdminOrders(snapshot) {
     if (els.adminTotal)   els.adminTotal.textContent   = String(snapshot.totalOrders         || 0);
     if (els.adminPaid)    els.adminPaid.textContent    = String(snapshot.paidCount           || 0);
     if (els.adminPending) els.adminPending.textContent = String(snapshot.pendingPaymentCount || 0);
+    if (els.digitalCount) els.digitalCount.textContent = String(snapshot.digitalCount || 0);
+    if (els.walkInCount)  els.walkInCount.textContent  = String(snapshot.walkInCount  || 0);
 
     if (!els.adminOrdersList || !els.adminRowTemplate) return;
     els.adminOrdersList.innerHTML = "";
@@ -239,8 +254,14 @@
 
     var fragment = document.createDocumentFragment();
     orders.forEach(function (order) {
-      var node = els.adminRowTemplate.content.cloneNode(true);
+      var node     = els.adminRowTemplate.content.cloneNode(true);
+      var isWalkIn = order.orderChannel === "WALK_IN";
+
       node.querySelector(".admin-order-name").textContent   = order.buyerName;
+
+      var channelBadge = node.querySelector(".channel-badge--walk-in");
+      if (channelBadge) channelBadge.hidden = !isWalkIn;
+
       node.querySelector(".admin-order-meta").textContent   = [order.buyerPhone, order.paymentReference].filter(Boolean).join(" | ") || "Sin referencia";
       node.querySelector(".admin-order-date").textContent   = order.createdAtLabel || "-";
       node.querySelector(".admin-order-method").textContent = String(order.paymentMethod || "").toUpperCase() === "SINPE" ? "SINPE" : "EFECTIVO";
@@ -589,6 +610,97 @@
     }
   }
 
+  // ── Manual sale modal ─────────────────────────────────────────────
+
+  function openManualSaleDialog() {
+    if (!els.manualSaleDialog) return;
+    // Reset state
+    if (els.manualSaleName)     els.manualSaleName.value   = "";
+    if (els.manualSaleMethod)   els.manualSaleMethod.value = "EFECTIVO";
+    if (els.manualSaleFeedback) els.manualSaleFeedback.textContent = "";
+    if (els.manualSaleSubmit)   els.manualSaleSubmit.disabled = false;
+    // Restore default selection on payment options
+    els.manualSaleDialog.querySelectorAll(".manual-sale-payment-option").forEach(function (btn) {
+      btn.classList.toggle("is-selected", btn.dataset.method === "EFECTIVO");
+    });
+    els.manualSaleDialog.showModal();
+    if (els.manualSaleName) els.manualSaleName.focus();
+  }
+
+  async function submitManualOrder() {
+    if (isSaving) return;
+
+    var name   = (els.manualSaleName  ? els.manualSaleName.value  : "").trim() || "Cliente";
+    var method = (els.manualSaleMethod ? els.manualSaleMethod.value : "EFECTIVO");
+    var target = todayKeyFromBrowser();
+
+    isSaving = true;
+    if (els.manualSaleSubmit)   els.manualSaleSubmit.disabled = true;
+    if (els.manualSaleFeedback) {
+      els.manualSaleFeedback.textContent = "Registrando venta...";
+      els.manualSaleFeedback.style.color = "var(--muted)";
+    }
+
+    try {
+      var result = await api.fetchJson("/orders", {
+        method: "POST",
+        body: {
+          order: {
+            buyerName:     name,
+            paymentMethod: method,
+            targetDate:    target
+          }
+        }
+      });
+
+      if (!result.ok) throw new Error(result.message || "No se pudo registrar la venta.");
+
+      els.manualSaleDialog.close();
+      setFeedback("Venta manual registrada: " + escHtml(name), false);
+      await loadAll();
+    } catch (err) {
+      if (els.manualSaleFeedback) {
+        els.manualSaleFeedback.textContent = err.message || "Error al registrar la venta.";
+        els.manualSaleFeedback.style.color = "var(--primary-dark)";
+      }
+    } finally {
+      isSaving = false;
+      if (els.manualSaleSubmit) els.manualSaleSubmit.disabled = false;
+    }
+  }
+
+  function initManualSaleModal() {
+    if (!els.manualSaleButton || !els.manualSaleDialog) return;
+
+    els.manualSaleButton.addEventListener("click", openManualSaleDialog);
+
+    if (els.manualSaleCancel) {
+      els.manualSaleCancel.addEventListener("click", function () {
+        if (!isSaving) els.manualSaleDialog.close();
+      });
+    }
+
+    // Close on backdrop click
+    els.manualSaleDialog.addEventListener("click", function (e) {
+      if (e.target === els.manualSaleDialog && !isSaving) els.manualSaleDialog.close();
+    });
+
+    // Payment method toggle
+    els.manualSaleDialog.querySelectorAll(".manual-sale-payment-option").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        els.manualSaleDialog.querySelectorAll(".manual-sale-payment-option").forEach(function (b) {
+          b.classList.remove("is-selected");
+        });
+        btn.classList.add("is-selected");
+        if (els.manualSaleMethod) els.manualSaleMethod.value = btn.dataset.method;
+      });
+    });
+
+    if (els.manualSaleSubmit) {
+      els.manualSaleSubmit.addEventListener("click", submitManualOrder);
+    }
+  }
+
   // ── Supabase Realtime subscription ───────────────────────────────
 
   function subscribeRealtime(cid) {
@@ -645,6 +757,7 @@
 
     if (els.menuForm)     els.menuForm.addEventListener("submit", submitMenu);
     if (els.exportButton) els.exportButton.addEventListener("click", exportOrders);
+    initManualSaleModal();
     if (els.logoutButton) els.logoutButton.addEventListener("click", function () {
       window.supabaseClient.auth.signOut();
       window.location.replace("./index.html");

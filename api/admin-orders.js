@@ -27,6 +27,8 @@ function buildSnapshot(orders, stats) {
     totalOrders:         stats.totalOrders,
     paidCount:           stats.paidOrders,
     pendingPaymentCount: stats.pendingPayment,
+    digitalCount:        stats.digitalCount || 0,
+    walkInCount:         stats.walkInCount  || 0,
     orders: orders.map((o) => ({
       id:                      o.id,
       buyerName:               o.buyer_name        || "Sin nombre",
@@ -34,6 +36,7 @@ function buildSnapshot(orders, stats) {
       paymentMethod:           o.payment_method     || "",
       paymentStatus:           normalizePayment(o.payment_status),
       paymentReference:        o.payment_reference  || "",
+      orderChannel:            o.order_channel      || "DIGITAL",
       createdAtLabel:          formatDateTime(o.created_at),
       paymentConfirmedAtLabel: formatDateTime(o.payment_confirmed_at)
     }))

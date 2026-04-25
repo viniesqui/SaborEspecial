@@ -24,6 +24,11 @@
 
       <section class="admin-hero">
         <h1 id="mgmtPageTitle">Gestión</h1>
+        <div class="admin-hero__actions">
+          <button type="button" id="mgmtManualSaleButton" class="button manual-sale-btn">
+            + Venta Manual
+          </button>
+        </div>
       </section>
 
       <!-- ── ADMIN TABS (hidden for HELPER) ──────────────────────── -->
@@ -99,9 +104,11 @@
           </div>
           <p id="mgmtCurrentMenuDescription" class="menu-description">Esperando datos del servidor.</p>
           <div class="menu-details">
-            <div><span class="detail-label">Precio</span>   <strong id="mgmtCurrentMenuPrice">-</strong></div>
-            <div><span class="detail-label">Venta</span>    <strong id="mgmtSalesWindow">-</strong></div>
-            <div><span class="detail-label">Entrega</span>  <strong id="mgmtDeliveryWindow">-</strong></div>
+            <div><span class="detail-label">Precio</span>    <strong id="mgmtCurrentMenuPrice">-</strong></div>
+            <div><span class="detail-label">Venta</span>     <strong id="mgmtSalesWindow">-</strong></div>
+            <div><span class="detail-label">Entrega</span>   <strong id="mgmtDeliveryWindow">-</strong></div>
+            <div><span class="detail-label">Digital</span>   <strong id="mgmtDigitalCount">0</strong></div>
+            <div><span class="detail-label">Walk-in</span>   <strong id="mgmtWalkInCount">0</strong></div>
           </div>
         </section>
 
@@ -197,6 +204,7 @@
     <article class="admin-orders-table__row">
       <div class="admin-orders-table__cell">
         <strong class="admin-order-name"></strong>
+        <span class="channel-badge channel-badge--walk-in" hidden>Walk-in</span>
         <p    class="admin-order-meta"></p>
       </div>
       <div class="admin-orders-table__cell"><p class="admin-order-date"></p></div>
@@ -236,6 +244,38 @@
       </div>
     </article>
   </template>
+
+  <!-- ── Manual sale modal ────────────────────────────────────────── -->
+  <dialog id="manualSaleDialog" class="manual-sale-dialog" aria-labelledby="manualSaleDialogTitle">
+    <div class="manual-sale-dialog__header">
+      <h2 id="manualSaleDialogTitle" class="manual-sale-dialog__title">Venta Manual</h2>
+      <p class="manual-sale-dialog__subtitle">Registra la venta de un cliente presencial</p>
+    </div>
+    <form id="manualSaleForm" class="manual-sale-dialog__form" method="dialog" novalidate>
+      <label class="manual-sale-dialog__label">
+        Nombre del cliente <span class="manual-sale-dialog__optional">(opcional)</span>
+        <input id="manualSaleName" type="text" class="manual-sale-dialog__input"
+               placeholder="Cliente" maxlength="80" autocomplete="off">
+      </label>
+      <fieldset class="manual-sale-dialog__fieldset">
+        <legend class="manual-sale-dialog__legend">Método de pago</legend>
+        <div class="manual-sale-dialog__payment-grid">
+          <button type="button" class="manual-sale-payment-option is-selected" data-method="EFECTIVO">Efectivo</button>
+          <button type="button" class="manual-sale-payment-option" data-method="SINPE">SINPE</button>
+        </div>
+        <input type="hidden" id="manualSaleMethod" value="EFECTIVO">
+      </fieldset>
+      <div class="manual-sale-dialog__actions">
+        <button type="button" id="manualSaleSubmit" class="button manual-sale-dialog__confirm">
+          Confirmar Venta
+        </button>
+        <button type="button" id="manualSaleCancel" class="button button--ghost manual-sale-dialog__cancel">
+          Cancelar
+        </button>
+      </div>
+      <p id="manualSaleFeedback" class="feedback manual-sale-dialog__feedback" aria-live="polite"></p>
+    </form>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="./config.js"></script>

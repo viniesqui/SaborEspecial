@@ -6,6 +6,7 @@ import { findActive as findActiveMenu }                         from "../data/me
 import { createAtomic, findToday, getStats }                    from "../data/orders.repo.js";
 import { getSettings }                                         from "../data/settings.repo.js";
 import { sendOrderStatusEmail }                                 from "../lib/email.js";
+import { requireAuth }                                          from "../lib/auth.js";
 
 function validateOrder(order) {
   if (!order.buyerName || !order.paymentMethod) {
@@ -40,6 +41,101 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
+  // Detect staff requests by the presence of a Bearer token.
+  // Staff orders are walk-in POS sales; customer orders are public (slug-based).
+  const authHeader     = String(req.headers?.authorization || "");
+  const isStaffRequest = authHeader.startsWith("Bearer ");
+
+  if (isStaffRequest) {
+    return handleStaffOrder(req, res);
+  }
+  return handleCustomerOrder(req, res);
+}
+
+// ── Staff (walk-in POS) path ──────────────────────────────────────────────────
+// Auth is required; cafeteriaId comes from the JWT session.
+// Cutoff is bypassed: staff can record a walk-in sale at any time.
+// Email notification is skipped: walk-in customers have no email.
+
+async function handleStaffOrder(req, res) {
+  try {
+    const { cafeteriaId } = await requireAuth(req, ["ADMIN", "HELPER"]);
+
+    const dayKey = getDayKey();
+    const order  = req.body?.order || {};
+
+    if (!order.paymentMethod) {
+      return res.status(400).json({ ok: false, message: "Método de pago requerido." });
+    }
+    if (!["SINPE", "EFECTIVO"].includes(String(order.paymentMethod).toUpperCase())) {
+      return res.status(400).json({ ok: false, message: "Método de pago inválido." });
+    }
+
+    // Walk-in orders are always for today; no future pre-ordering via POS.
+    const targetDate = dayKey;
+
+    const [settings, menu] = await Promise.all([
+      getSettings(cafeteriaId),
+      findActiveMenu(cafeteriaId, targetDate)
+    ]);
+
+    if (!menu) {
+      return res.status(400).json({
+        ok: false,
+        message: "No hay menú configurado para hoy."
+      });
+    }
+
+    const trackingToken = randomUUID();
+    const buyerName     = String(order.buyerName || "").trim() || "Cliente";
+
+    const result = await createAtomic({
+      cafeteriaId,
+      dayKey,
+      targetDate,
+      buyerName,
+      buyerEmail:      "",
+      menuId:          menu.id,
+      menuTitle:       menu.title,
+      menuDescription: menu.description,
+      menuPrice:       Number(menu.price),
+      paymentMethod:   String(order.paymentMethod).toUpperCase(),
+      trackingToken,
+      orderChannel:    "WALK_IN",
+      createdByStaff:  true
+    });
+
+    if (!result?.ok) {
+      const msg = result?.error === "CAPACITY_EXCEEDED"
+        ? "Ya no hay almuerzos disponibles para hoy."
+        : "No se pudo registrar la venta.";
+      return res.status(400).json({ ok: false, message: msg });
+    }
+
+    const [freshOrders, freshStats] = await Promise.all([
+      findToday(cafeteriaId, targetDate),
+      getStats(cafeteriaId, targetDate)
+    ]);
+
+    return res.status(200).json({
+      ok:           true,
+      message:      "Venta manual registrada correctamente.",
+      trackingToken,
+      targetDate,
+      snapshot:     buildDashboardSnapshot(settings, menu, freshOrders, freshStats)
+    });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ ok: false, message: error.message });
+    }
+    return res.status(400).json({ ok: false, message: error.message || "No se pudo registrar la venta." });
+  }
+}
+
+// ── Customer (digital web) path ───────────────────────────────────────────────
+// Public endpoint — no auth required. Identifies the cafeteria by slug.
+
+async function handleCustomerOrder(req, res) {
   // Multi-tenant: slug comes from query string or request body.
   const slug = String(req.query?.slug || req.body?.slug || "").toLowerCase().trim();
   if (!slug) {
@@ -102,7 +198,9 @@ export default async function handler(req, res) {
       menuDescription: menu.description,
       menuPrice:       Number(menu.price),
       paymentMethod:   String(order.paymentMethod).toUpperCase(),
-      trackingToken
+      trackingToken,
+      orderChannel:    "DIGITAL",
+      createdByStaff:  false
     });
 
     if (!result?.ok) {
