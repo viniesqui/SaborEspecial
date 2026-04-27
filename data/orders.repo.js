@@ -50,12 +50,15 @@ export async function findToday(cafeteriaId, targetDate) {
 }
 
 // Returns full order rows for the admin payment-management panel.
+// Includes sale_type and package_id so the panel can handle package
+// payment confirmations (which trigger credit grants) differently.
 export async function findTodayForAdmin(cafeteriaId, targetDate) {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, buyer_name, buyer_phone, payment_method, payment_status, " +
-      "payment_reference, created_at, payment_confirmed_at, order_channel"
+      "id, buyer_name, buyer_email, buyer_phone, payment_method, payment_status, " +
+      "payment_reference, created_at, payment_confirmed_at, order_channel, " +
+      "sale_type, package_id"
     )
     .eq("cafeteria_id", cafeteriaId)
     .eq("target_date", targetDate)

@@ -10,30 +10,46 @@
 
   // State
   var state = {
-    snapshot:      null,
-    weekMenus:     [],
-    selectedDate:  "",   // YYYY-MM-DD the buyer has selected
-    isSubmitting:  false
+    snapshot:        null,
+    weekMenus:       [],
+    selectedDate:    "",   // YYYY-MM-DD the buyer has selected
+    isSubmitting:    false,
+    creditBalance:   0,
+    selectedPkg:     null, // { id, title, mealCount, price }
+    isPkgSubmitting: false
   };
 
   var els = {
-    weekDayTabs:        document.getElementById("weekDayTabs"),
-    menuDayEyebrow:     document.getElementById("menuDayEyebrow"),
-    menuTitle:          document.getElementById("menuTitle"),
-    menuDescription:    document.getElementById("menuDescription"),
-    menuPrice:          document.getElementById("menuPrice"),
-    dailyMessage:       document.getElementById("dailyMessage"),
-    availableCount:     document.getElementById("availableCount"),
-    buyersList:         document.getElementById("buyersList"),
-    orderForm:          document.getElementById("orderForm"),
-    submitButton:       document.getElementById("submitButton"),
-    formFeedback:       document.getElementById("formFeedback"),
-    paymentMethodInput: document.getElementById("paymentMethod"),
-    paymentOptions:     Array.from(document.querySelectorAll(".payment-option")),
-    buyerRowTemplate:   document.getElementById("buyerRowTemplate"),
-    logoutButton:       document.getElementById("logoutButton"),
-    trackingLinkSection:document.getElementById("trackingLinkSection"),
-    trackingLink:       document.getElementById("trackingLink")
+    weekDayTabs:          document.getElementById("weekDayTabs"),
+    menuDayEyebrow:       document.getElementById("menuDayEyebrow"),
+    menuTitle:            document.getElementById("menuTitle"),
+    menuDescription:      document.getElementById("menuDescription"),
+    menuPrice:            document.getElementById("menuPrice"),
+    dailyMessage:         document.getElementById("dailyMessage"),
+    availableCount:       document.getElementById("availableCount"),
+    buyersList:           document.getElementById("buyersList"),
+    orderForm:            document.getElementById("orderForm"),
+    submitButton:         document.getElementById("submitButton"),
+    formFeedback:         document.getElementById("formFeedback"),
+    paymentMethodInput:   document.getElementById("paymentMethod"),
+    paymentOptions:       Array.from(document.querySelectorAll(".payment-option:not(.pkg-payment-option)")),
+    buyerRowTemplate:     document.getElementById("buyerRowTemplate"),
+    logoutButton:         document.getElementById("logoutButton"),
+    trackingLinkSection:  document.getElementById("trackingLinkSection"),
+    trackingLink:         document.getElementById("trackingLink"),
+    creditBalanceBadge:   document.getElementById("creditBalanceBadge"),
+    creditPaymentOption:  document.getElementById("creditPaymentOption"),
+    // Packages section
+    packagesList:         document.getElementById("packagesList"),
+    packageForm:          document.getElementById("packageForm"),
+    pkgSubmitButton:      document.getElementById("pkgSubmitButton"),
+    pkgFormFeedback:      document.getElementById("pkgFormFeedback"),
+    pkgPaymentMethodInput:document.getElementById("pkgPaymentMethod"),
+    pkgPaymentOptions:    Array.from(document.querySelectorAll(".pkg-payment-option")),
+    selectedPackageLabel: document.getElementById("selectedPackageLabel"),
+    pkgTrackingSection:   document.getElementById("pkgTrackingSection"),
+    pkgTrackingLink:      document.getElementById("pkgTrackingLink"),
+    pkgTrackingMessage:   document.getElementById("pkgTrackingMessage")
   };
 
   // ── Day key utilities (mirrors lib/dashboard.js) ──────────────────
@@ -311,6 +327,10 @@
       setFeedback("Complete todos los campos obligatorios.", true);
       return;
     }
+    if (payload.paymentMethod === "CREDITO" && !payload.buyerEmail) {
+      setFeedback("Ingrese su correo electrónico para canjear un crédito.", true);
+      return;
+    }
 
     state.isSubmitting        = true;
     els.submitButton.disabled = true;
@@ -364,6 +384,181 @@
     });
   }
 
+  // ── Credit balance ────────────────────────────────────────────────
+
+  var creditCheckTimer = null;
+
+  function updateCreditUI(balance) {
+    state.creditBalance = Number(balance || 0);
+    var badge  = els.creditBalanceBadge;
+    var option = els.creditPaymentOption;
+    if (!badge || !option) return;
+
+    if (state.creditBalance > 0) {
+      var count = state.creditBalance;
+      badge.textContent = count + " crédito" + (count !== 1 ? "s" : "") + " disponible" + (count !== 1 ? "s" : "");
+      badge.hidden = false;
+      option.hidden = false;
+      option.textContent = "Usar Crédito (" + count + ")";
+    } else {
+      badge.hidden = true;
+      option.hidden = true;
+      if (els.paymentMethodInput.value === "CREDITO") selectPaymentMethod("");
+    }
+  }
+
+  function scheduleCreditCheck(email) {
+    clearTimeout(creditCheckTimer);
+    if (!email || !email.includes("@")) { updateCreditUI(0); return; }
+    creditCheckTimer = setTimeout(function () {
+      api.fetchJson("/credits?slug=" + encodeURIComponent(slug) + "&email=" + encodeURIComponent(email))
+        .then(function (d) { updateCreditUI(d.remainingMeals || 0); })
+        .catch(function ()  { updateCreditUI(0); });
+    }, 600);
+  }
+
+  // ── Packages ──────────────────────────────────────────────────────
+
+  async function fetchAndRenderPackages() {
+    if (!els.packagesList) return;
+    try {
+      var data = await api.fetchJson("/packages?slug=" + encodeURIComponent(slug));
+      renderPackages(data.packages || []);
+    } catch (_) {
+      if (els.packagesList) els.packagesList.innerHTML = '<span class="muted">No hay paquetes disponibles por el momento.</span>';
+    }
+  }
+
+  function renderPackages(packages) {
+    if (!els.packagesList) return;
+    if (!packages.length) {
+      els.packagesList.innerHTML = '<span class="muted">No hay paquetes disponibles por el momento.</span>';
+      return;
+    }
+    var html = "";
+    packages.forEach(function (pkg) {
+      html +=
+        '<button type="button" class="package-card" data-pkg-id="' + encodeAttr(pkg.id) + '" ' +
+          'data-pkg-title="' + encodeAttr(pkg.title) + '" ' +
+          'data-pkg-count="' + pkg.meal_count + '" ' +
+          'data-pkg-price="' + pkg.price + '">' +
+          '<span class="package-card__title">' + escapeHtml(pkg.title) + '</span>' +
+          '<span class="package-card__count">' + pkg.meal_count + ' almuerzos</span>' +
+          '<span class="package-card__price">' + fmt.currency(pkg.price) + '</span>' +
+        '</button>';
+    });
+    els.packagesList.innerHTML = html;
+    els.packagesList.querySelectorAll(".package-card").forEach(function (btn) {
+      btn.addEventListener("click", function () { selectPackage(btn); });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function encodeAttr(s) {
+    return String(s || "").replace(/"/g, "&quot;");
+  }
+
+  function selectPackage(btn) {
+    var already = btn.classList.contains("is-selected");
+    els.packagesList.querySelectorAll(".package-card").forEach(function (b) { b.classList.remove("is-selected"); });
+    if (already) {
+      state.selectedPkg = null;
+      if (els.packageForm) els.packageForm.hidden = true;
+      return;
+    }
+    btn.classList.add("is-selected");
+    state.selectedPkg = {
+      id:        btn.dataset.pkgId,
+      title:     btn.dataset.pkgTitle,
+      mealCount: Number(btn.dataset.pkgCount),
+      price:     Number(btn.dataset.pkgPrice)
+    };
+    if (els.selectedPackageLabel) {
+      els.selectedPackageLabel.textContent =
+        "Paquete seleccionado: " + state.selectedPkg.title +
+        " — " + state.selectedPkg.mealCount + " almuerzos — " +
+        fmt.currency(state.selectedPkg.price);
+    }
+    if (els.packageForm) {
+      els.packageForm.hidden = false;
+      els.packageForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    setPkgFeedback("", false);
+  }
+
+  function selectPkgPaymentMethod(method) {
+    if (!els.pkgPaymentMethodInput) return;
+    els.pkgPaymentMethodInput.value = method || "";
+    els.pkgPaymentOptions.forEach(function (btn) {
+      var sel = btn.dataset.paymentMethod === method;
+      btn.classList.toggle("is-selected", sel);
+      btn.setAttribute("aria-pressed", sel ? "true" : "false");
+    });
+  }
+
+  function setPkgFeedback(msg, isError) {
+    if (!els.pkgFormFeedback) return;
+    els.pkgFormFeedback.textContent = msg || "";
+    els.pkgFormFeedback.style.color = isError ? "#842f3d" : "#705d52";
+  }
+
+  async function submitPackage(event) {
+    event.preventDefault();
+    if (state.isPkgSubmitting || !state.selectedPkg) return;
+
+    var fd            = new FormData(els.packageForm);
+    var buyerName     = String(fd.get("pkgBuyerName")      || "").trim();
+    var buyerEmail    = String(fd.get("pkgBuyerEmail")     || "").trim().toLowerCase();
+    var paymentMethod = String(fd.get("pkgPaymentMethod")  || "").trim();
+
+    if (!buyerName)     { setPkgFeedback("Ingrese su nombre completo.", true);       return; }
+    if (!buyerEmail)    { setPkgFeedback("Ingrese su correo electrónico.", true);    return; }
+    if (!paymentMethod) { setPkgFeedback("Seleccione un método de pago.", true);     return; }
+
+    state.isPkgSubmitting        = true;
+    els.pkgSubmitButton.disabled = true;
+    setPkgFeedback("Registrando solicitud...", false);
+
+    try {
+      var result = await api.fetchJson("/packages?slug=" + encodeURIComponent(slug), {
+        method: "POST",
+        body: {
+          action: "buy",
+          buyerName,
+          buyerEmail,
+          packageId:    state.selectedPkg.id,
+          paymentMethod
+        }
+      });
+      if (!result.ok) throw new Error(result.message || "No se pudo registrar el paquete.");
+
+      if (els.pkgTrackingSection && els.pkgTrackingLink) {
+        var trackingUrl = window.location.origin +
+          window.location.pathname.replace(/[^/]*$/, "") +
+          "track.html?token=" + encodeURIComponent(result.trackingToken);
+        els.pkgTrackingLink.href        = trackingUrl;
+        els.pkgTrackingLink.textContent = trackingUrl;
+        if (els.pkgTrackingMessage) els.pkgTrackingMessage.textContent = result.message || "";
+        els.pkgTrackingSection.hidden = false;
+      }
+
+      // Reset package form
+      els.packageForm.reset();
+      selectPkgPaymentMethod("");
+      state.selectedPkg = null;
+      els.packageForm.hidden = true;
+      els.packagesList.querySelectorAll(".package-card").forEach(function (b) { b.classList.remove("is-selected"); });
+    } catch (err) {
+      setPkgFeedback(err.message, true);
+    } finally {
+      state.isPkgSubmitting        = false;
+      els.pkgSubmitButton.disabled = false;
+    }
+  }
+
   // ── Init ──────────────────────────────────────────────────────────
 
   function start() {
@@ -374,6 +569,18 @@
     els.paymentOptions.forEach(function (btn) {
       btn.addEventListener("click", function () { selectPaymentMethod(btn.dataset.paymentMethod); });
     });
+
+    // Credit balance: check whenever the email field changes.
+    var buyerEmailInput = document.getElementById("buyerEmail");
+    if (buyerEmailInput) {
+      buyerEmailInput.addEventListener("input", function () {
+        scheduleCreditCheck(buyerEmailInput.value.trim().toLowerCase());
+      });
+      buyerEmailInput.addEventListener("change", function () {
+        scheduleCreditCheck(buyerEmailInput.value.trim().toLowerCase());
+      });
+    }
+
     if (els.logoutButton) {
       els.logoutButton.addEventListener("click", function () {
         sessionStorage.removeItem("ceep-role-session");
@@ -381,8 +588,17 @@
       });
     }
 
+    // Package form
+    if (els.packageForm) {
+      els.packageForm.addEventListener("submit", submitPackage);
+    }
+    els.pkgPaymentOptions.forEach(function (btn) {
+      btn.addEventListener("click", function () { selectPkgPaymentMethod(btn.dataset.paymentMethod); });
+    });
+
     banner.init();
     refreshSnapshot(false);
+    fetchAndRenderPackages();
 
     window.setInterval(function () { refreshSnapshot(false); }, Number(config.refreshIntervalMs || 30000));
 

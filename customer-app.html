@@ -73,6 +73,7 @@
         <label>
           Correo electrónico <span style="font-weight:normal;font-size:0.9em">(para recibir confirmación de pago)</span>
           <input id="buyerEmail" name="buyerEmail" type="email" maxlength="120" autocomplete="email" placeholder="ejemplo@correo.com">
+          <span id="creditBalanceBadge" class="credit-balance-badge" hidden></span>
         </label>
 
         <label>
@@ -84,6 +85,10 @@
             </button>
             <button type="button" class="payment-option" data-payment-method="EFECTIVO" aria-pressed="false">
               Efectivo
+            </button>
+            <button type="button" class="payment-option payment-option--credit" id="creditPaymentOption"
+                    data-payment-method="CREDITO" aria-pressed="false" hidden>
+              Usar Crédito
             </button>
           </div>
         </label>
@@ -106,6 +111,64 @@
       <p style="margin:0.75rem 0 0;font-size:0.88em;color:var(--muted)">
         También recibirás este enlace en tu correo de confirmación si proporcionaste tu email.
       </p>
+    </section>
+
+    <!-- ── Package purchase section ───────────────────────────── -->
+    <section class="card card--packages" id="packagesSection">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Paquetes prepagados</p>
+          <h2>Comprar paquete de almuerzos</h2>
+        </div>
+      </div>
+      <p class="menu-description" style="margin:0 0 1rem">
+        Compra un paquete de almuerzos y paga una sola vez. Luego selecciona <strong>"Usar Crédito"</strong> en el formulario de pedido cada día.
+      </p>
+
+      <div id="packagesList" class="packages-grid">
+        <span class="muted">Cargando paquetes...</span>
+      </div>
+
+      <!-- Package purchase form — revealed when a package card is selected -->
+      <form id="packageForm" class="form" style="margin-top:1.25rem" hidden>
+        <p id="selectedPackageLabel" class="package-selected-label"></p>
+
+        <label>
+          Nombre completo
+          <input id="pkgBuyerName" name="pkgBuyerName" type="text" maxlength="80" required autocomplete="name">
+        </label>
+
+        <label>
+          Correo electrónico <span style="font-weight:normal;font-size:0.9em">(los créditos quedarán asociados a este correo)</span>
+          <input id="pkgBuyerEmail" name="pkgBuyerEmail" type="email" maxlength="120" required autocomplete="email" placeholder="ejemplo@correo.com">
+        </label>
+
+        <label>
+          Método de pago
+          <input id="pkgPaymentMethod" name="pkgPaymentMethod" type="hidden" required>
+          <div class="payment-methods" role="radiogroup" aria-label="Metodo de pago del paquete">
+            <button type="button" class="payment-option pkg-payment-option" data-payment-method="SINPE" aria-pressed="false">
+              SINPE móvil
+            </button>
+            <button type="button" class="payment-option pkg-payment-option" data-payment-method="EFECTIVO" aria-pressed="false">
+              Efectivo
+            </button>
+          </div>
+        </label>
+
+        <button id="pkgSubmitButton" type="submit" class="button">Solicitar paquete</button>
+        <p id="pkgFormFeedback" class="feedback" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- Package tracking confirmation — shown after package purchase -->
+    <section id="pkgTrackingSection" class="card tracking-link-card" hidden>
+      <p class="eyebrow">¡Paquete solicitado!</p>
+      <h2 style="margin:0 0 0.5rem">Verificación de pago pendiente</h2>
+      <p style="margin:0 0 1rem;color:var(--muted)" id="pkgTrackingMessage"></p>
+      <div class="tracking-link-box">
+        <a id="pkgTrackingLink" href="#" class="tracking-link" target="_blank" rel="noopener"></a>
+      </div>
     </section>
 
     <section class="card delivery-table-card customer-tracking-card">
@@ -151,6 +214,9 @@
 
   <script src="./config.js"></script>
   <script src="./lib/logger.js"></script>
+  <script src="./shared/status-banner.js"></script>
+  <script src="./shared/api-client.js"></script>
+  <script src="./shared/formatters.js"></script>
   <script src="./app.js" defer></script>
 </body>
 </html>

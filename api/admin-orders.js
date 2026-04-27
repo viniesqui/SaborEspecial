@@ -4,6 +4,7 @@ import { requireAuth }                                from "../lib/auth.js";
 import { sendOrderStatusEmail }                       from "../lib/email.js";
 import { supabase }                                   from "../lib/supabase.js";
 import { findTodayForAdmin, updatePayment, getStats } from "../data/orders.repo.js";
+import { addCredits }                                 from "../data/credits.repo.js";
 
 const PAID_STATUSES = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"];
 
@@ -32,11 +33,14 @@ function buildSnapshot(orders, stats) {
     orders: orders.map((o) => ({
       id:                      o.id,
       buyerName:               o.buyer_name        || "Sin nombre",
+      buyerEmail:              o.buyer_email        || "",
       buyerPhone:              o.buyer_phone        || "",
       paymentMethod:           o.payment_method     || "",
       paymentStatus:           normalizePayment(o.payment_status),
       paymentReference:        o.payment_reference  || "",
       orderChannel:            o.order_channel      || "DIGITAL",
+      saleType:                o.sale_type          || "SINGLE_SALE",
+      packageId:               o.package_id         || null,
       createdAtLabel:          formatDateTime(o.created_at),
       paymentConfirmedAtLabel: formatDateTime(o.payment_confirmed_at)
     }))
@@ -78,9 +82,22 @@ export default async function handler(req, res) {
       if (paymentStatus === "PAGADO") {
         const { data: row } = await supabase
           .from("orders")
-          .select("buyer_name, buyer_email, tracking_token")
+          .select("buyer_name, buyer_email, tracking_token, sale_type, package_id")
           .eq("id", orderId)
           .maybeSingle();
+
+        // If this is a PACKAGE_SALE, grant the purchased credits to the buyer.
+        if (row?.sale_type === "PACKAGE_SALE" && row?.package_id && row?.buyer_email) {
+          const { data: pkg } = await supabase
+            .from("packages")
+            .select("meal_count")
+            .eq("id", row.package_id)
+            .maybeSingle();
+
+          if (pkg?.meal_count) {
+            await addCredits(cafeteriaId, row.buyer_email, pkg.meal_count).catch(() => null);
+          }
+        }
 
         if (row?.buyer_email) {
           const appBaseUrl  = (process.env.APP_BASE_URL || "").replace(/\/$/, "");

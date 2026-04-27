@@ -4,6 +4,7 @@ import { getDayKey, isCutoffPassedForDate, buildDashboardSnapshot } from "../lib
 import { findBySlug }                                           from "../data/cafeterias.repo.js";
 import { findActive as findActiveMenu }                         from "../data/menus.repo.js";
 import { createAtomic, findToday, getStats }                    from "../data/orders.repo.js";
+import { createCreditOrder }                                    from "../data/credits.repo.js";
 import { getSettings }                                         from "../data/settings.repo.js";
 import { sendOrderStatusEmail }                                 from "../lib/email.js";
 import { requireAuth }                                          from "../lib/auth.js";
@@ -12,8 +13,12 @@ function validateOrder(order) {
   if (!order.buyerName || !order.paymentMethod) {
     throw new Error("Faltan datos obligatorios.");
   }
-  if (!["SINPE", "EFECTIVO"].includes(String(order.paymentMethod).toUpperCase())) {
+  const method = String(order.paymentMethod).toUpperCase();
+  if (!["SINPE", "EFECTIVO", "CREDITO"].includes(method)) {
     throw new Error("Método de pago inválido.");
+  }
+  if (method === "CREDITO" && !String(order.buyerEmail || "").trim()) {
+    throw new Error("El correo electrónico es obligatorio para pagar con crédito.");
   }
 }
 
@@ -184,30 +189,58 @@ async function handleCustomerOrder(req, res) {
 
     const trackingToken = randomUUID();
     const buyerEmail    = String(order.buyerEmail || "").trim().toLowerCase();
+    const buyerName     = String(order.buyerName  || "").trim();
+    const paymentMethod = String(order.paymentMethod).toUpperCase();
 
-    // Atomic insert — capacity check and INSERT happen in one PostgreSQL
-    // transaction.  Capacity is now counted per target_date.
-    const result = await createAtomic({
-      cafeteriaId,
-      dayKey,
-      targetDate,
-      buyerName:       String(order.buyerName || "").trim(),
-      buyerEmail,
-      menuId:          menu.id,
-      menuTitle:       menu.title,
-      menuDescription: menu.description,
-      menuPrice:       Number(menu.price),
-      paymentMethod:   String(order.paymentMethod).toUpperCase(),
-      trackingToken,
-      orderChannel:    "DIGITAL",
-      createdByStaff:  false
-    });
+    let result;
 
-    if (!result?.ok) {
-      const msg = result?.error === "CAPACITY_EXCEEDED"
-        ? "Ya no hay almuerzos disponibles para esa fecha."
-        : "No se pudo registrar la compra.";
-      return res.status(400).json({ ok: false, message: msg });
+    if (paymentMethod === "CREDITO") {
+      // Credit redemption — atomic: capacity check + balance decrement + INSERT.
+      // Payment is auto-confirmed (pre-paid).
+      result = await createCreditOrder({
+        cafeteriaId,
+        dayKey,
+        targetDate,
+        buyerName,
+        buyerEmail,
+        menuId:          menu.id,
+        menuTitle:       menu.title,
+        menuDescription: menu.description,
+        menuPrice:       Number(menu.price),
+        trackingToken
+      });
+
+      if (!result?.ok) {
+        const msg =
+          result?.error === "CAPACITY_EXCEEDED" ? "Ya no hay almuerzos disponibles para esa fecha." :
+          result?.error === "NO_CREDITS"         ? "No tienes créditos disponibles." :
+                                                   "No se pudo registrar la compra.";
+        return res.status(400).json({ ok: false, message: msg });
+      }
+    } else {
+      // Standard SINPE / EFECTIVO — atomic capacity check + INSERT.
+      result = await createAtomic({
+        cafeteriaId,
+        dayKey,
+        targetDate,
+        buyerName,
+        buyerEmail,
+        menuId:          menu.id,
+        menuTitle:       menu.title,
+        menuDescription: menu.description,
+        menuPrice:       Number(menu.price),
+        paymentMethod,
+        trackingToken,
+        orderChannel:    "DIGITAL",
+        createdByStaff:  false
+      });
+
+      if (!result?.ok) {
+        const msg = result?.error === "CAPACITY_EXCEEDED"
+          ? "Ya no hay almuerzos disponibles para esa fecha."
+          : "No se pudo registrar la compra.";
+        return res.status(400).json({ ok: false, message: msg });
+      }
     }
 
     const appBaseUrl  = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
@@ -216,9 +249,9 @@ async function handleCustomerOrder(req, res) {
     if (buyerEmail) {
       sendOrderStatusEmail({
         to:          buyerEmail,
-        buyerName:   String(order.buyerName || "").trim(),
+        buyerName,
         orderId:     result.order_id,
-        status:      "SOLICITADO",
+        status:      paymentMethod === "CREDITO" ? "CONFIRMADO" : "SOLICITADO",
         trackingUrl
       }).catch(() => null);
     }
@@ -228,9 +261,13 @@ async function handleCustomerOrder(req, res) {
       getStats(cafeteriaId, targetDate)
     ]);
 
+    const message = paymentMethod === "CREDITO"
+      ? "Crédito canjeado correctamente. ¡Tu almuerzo está confirmado!"
+      : "Compra registrada correctamente.";
+
     return res.status(200).json({
       ok:           true,
-      message:      "Compra registrada correctamente.",
+      message,
       trackingToken,
       targetDate,
       snapshot:     buildDashboardSnapshot(settings, menu, freshOrders, freshStats)

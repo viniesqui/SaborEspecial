@@ -1964,3 +1964,97 @@ textarea {
   min-height: 1.4rem;
   font-size: 0.9rem;
 }
+
+/* ── Meal packages & credits ──────────────────────────────── */
+
+.card--packages {
+  grid-column: 1 / -1;
+}
+
+.packages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.package-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 2px solid var(--border);
+  background: var(--surface-strong);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.package-card:hover,
+.package-card:focus-visible {
+  border-color: rgba(131, 47, 61, 0.4);
+  background: #fdf0f2;
+}
+
+.package-card.is-selected {
+  border-color: var(--primary-dark);
+  background: #fdf0f2;
+}
+
+.package-card__title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.package-card__count {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.package-card__price {
+  margin-top: 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+}
+
+.package-selected-label {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  background: rgba(163, 61, 77, 0.08);
+  color: var(--primary-dark);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Credit balance badge under email field */
+.credit-balance-badge {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(45, 127, 94, 0.12);
+  color: var(--success);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Full-width credit payment button when shown alongside SINPE + Efectivo */
+.payment-option--credit {
+  grid-column: 1 / -1;
+  background: rgba(45, 127, 94, 0.08);
+  border-color: rgba(45, 127, 94, 0.3);
+  color: var(--success);
+}
+
+.payment-option--credit:hover,
+.payment-option--credit:focus-visible {
+  background: rgba(45, 127, 94, 0.15);
+}
+
+.payment-option--credit.is-selected {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
