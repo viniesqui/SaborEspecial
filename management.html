@@ -26,7 +26,7 @@
         <h1 id="mgmtPageTitle">Gestión</h1>
         <div class="admin-hero__actions">
           <button type="button" id="mgmtManualSaleButton" class="button manual-sale-btn">
-            + Venta Manual
+            + Venta directa
           </button>
         </div>
       </section>
@@ -113,7 +113,7 @@
             <div><span class="detail-label">Venta</span>     <strong id="mgmtSalesWindow">-</strong></div>
             <div><span class="detail-label">Entrega</span>   <strong id="mgmtDeliveryWindow">-</strong></div>
             <div><span class="detail-label">Digital</span>   <strong id="mgmtDigitalCount">0</strong></div>
-            <div><span class="detail-label">Walk-in</span>   <strong id="mgmtWalkInCount">0</strong></div>
+            <div><span class="detail-label">En persona</span> <strong id="mgmtWalkInCount">0</strong></div>
           </div>
         </section>
 
@@ -143,8 +143,8 @@
           </div>
           <div class="admin-orders-table">
             <div class="admin-orders-table__head">
-              <span>Cliente</span><span>Solicitud</span><span>Método</span>
-              <span>Estado del pago</span><span>Confirmado</span><span>Acciones</span>
+              <span>Cliente</span><span>Hora</span><span>Método</span>
+              <span>Pago</span><span>Verificado</span><span>Acción</span>
             </div>
             <div id="mgmtAdminOrdersList" class="admin-orders-table__body">
               <div class="admin-orders-table__empty">No hay pedidos registrados hoy.</div>
@@ -156,8 +156,8 @@
         <section class="card delivery-table-card helper-deliveries-card helper-only" hidden>
           <div class="delivery-table">
             <div class="delivery-table__head">
-              <span>PEDIDO</span><span>SOLICITUD</span>
-              <span>ESTADO DEL PAGO</span><span>PENDIENTE</span><span>ENTREGADO</span>
+              <span>NOMBRE</span><span>HORA</span>
+              <span>PAGO</span><span>PENDIENTE</span><span>ENTREGADO</span>
             </div>
             <div id="mgmtHelperOrdersList" class="delivery-table__body">
               <div class="delivery-table__empty">No hay compras registradas todavía.</div>
@@ -259,7 +259,7 @@
     <article class="admin-orders-table__row">
       <div class="admin-orders-table__cell">
         <strong class="admin-order-name"></strong>
-        <span class="channel-badge channel-badge--walk-in" hidden>Walk-in</span>
+        <span class="channel-badge channel-badge--walk-in" hidden>En persona</span>
         <p    class="admin-order-meta"></p>
       </div>
       <div class="admin-orders-table__cell"><p class="admin-order-date"></p></div>
@@ -303,8 +303,8 @@
   <!-- ── Manual sale modal ────────────────────────────────────────── -->
   <dialog id="manualSaleDialog" class="manual-sale-dialog" aria-labelledby="manualSaleDialogTitle">
     <div class="manual-sale-dialog__header">
-      <h2 id="manualSaleDialogTitle" class="manual-sale-dialog__title">Venta Manual</h2>
-      <p class="manual-sale-dialog__subtitle">Registra la venta de un cliente presencial</p>
+      <h2 id="manualSaleDialogTitle" class="manual-sale-dialog__title">Venta directa</h2>
+      <p class="manual-sale-dialog__subtitle">Registra la venta de un cliente que llegó en persona</p>
     </div>
     <form id="manualSaleForm" class="manual-sale-dialog__form" method="dialog" novalidate>
       <label class="manual-sale-dialog__label">
