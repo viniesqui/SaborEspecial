@@ -33,8 +33,9 @@
 
       <!-- ── ADMIN TABS (hidden for HELPER) ──────────────────────── -->
       <nav class="admin-tabs admin-only" id="mgmtTabs" aria-label="Secciones del panel" hidden>
-        <button class="admin-tab is-active" data-tab="mgmtOperationsTab" type="button">Operaciones</button>
-        <button class="admin-tab"           data-tab="mgmtInsightsTab"   type="button">Análisis</button>
+        <button class="admin-tab is-active" data-tab="mgmtOperationsTab"  type="button">Operaciones</button>
+        <button class="admin-tab"           data-tab="mgmtInsightsTab"    type="button">Análisis</button>
+        <button class="admin-tab"           data-tab="mgmtAccountingTab"  type="button">Contabilidad</button>
       </nav>
 
       <!-- ================================================================
@@ -83,6 +84,10 @@
             <label>
               Precio en colones
               <input id="mgmtMenuPrice" name="price" type="number" min="0" step="1" required>
+            </label>
+            <label>
+              Costo estimado por plato <span class="field-optional">(opcional — ingredientes + mano de obra)</span>
+              <input id="mgmtMenuCost" name="cost" type="number" min="0" step="1" placeholder="0">
             </label>
             <button id="mgmtMenuSubmit" type="submit" class="button">Guardar menú</button>
             <p id="mgmtMenuFeedback" class="feedback" aria-live="polite"></p>
@@ -191,6 +196,56 @@
         </section>
 
       </section><!-- /mgmtInsightsTab -->
+
+      <!-- ================================================================
+           ACCOUNTING TAB — ADMIN only
+           ================================================================ -->
+      <section id="mgmtAccountingTab" class="admin-content admin-only" hidden>
+
+        <!-- Controls: month picker + export -->
+        <section class="card admin-card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Módulo Contable</p>
+              <h2>Rentabilidad y Recomendaciones</h2>
+            </div>
+            <div class="accounting-controls">
+              <input type="month" id="accountingMonth" class="accounting-month-input" aria-label="Seleccionar mes">
+              <button type="button" id="accountingExportBtn" class="button button--ghost">Exportar CSV</button>
+            </div>
+          </div>
+          <p id="accountingUpdatedAt" class="muted" style="margin:0.4rem 0 0;">Selecciona el mes para cargar el reporte.</p>
+        </section>
+
+        <!-- Recommendations -->
+        <section class="card admin-card insights-full-width">
+          <div class="section-title">
+            <div><p class="eyebrow">Inteligencia de negocio</p><h2>Recomendaciones</h2></div>
+          </div>
+          <div id="accountingRecommendations"><p class="insights-empty">Carga un mes para ver recomendaciones.</p></div>
+        </section>
+
+        <!-- KPI Summary -->
+        <section class="card admin-card">
+          <div class="section-title"><div><p class="eyebrow">Resumen del mes</p><h2>Indicadores Clave</h2></div></div>
+          <div id="accountingKpis" class="accounting-kpis">
+            <p class="insights-empty">Cargando indicadores...</p>
+          </div>
+        </section>
+
+        <!-- Stability bar -->
+        <section class="card admin-card">
+          <div class="section-title"><div><p class="eyebrow">Fuente de ingresos</p><h2>A la carta vs Paquetes</h2></div></div>
+          <div id="accountingStability"><p class="insights-empty">Cargando análisis...</p></div>
+        </section>
+
+        <!-- Daily breakdown -->
+        <section class="card admin-card insights-full-width">
+          <div class="section-title"><div><p class="eyebrow">Desglose por día</p><h2>Rentabilidad Diaria</h2></div></div>
+          <div id="accountingDaily"><p class="insights-empty">Cargando desglose...</p></div>
+        </section>
+
+      </section><!-- /mgmtAccountingTab -->
 
     </main>
 

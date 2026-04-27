@@ -29,6 +29,7 @@
     menuTitleInput:    document.getElementById("mgmtMenuTitle"),
     menuDescInput:     document.getElementById("mgmtMenuDescription"),
     menuPriceInput:    document.getElementById("mgmtMenuPrice"),
+    menuCostInput:     document.getElementById("mgmtMenuCost"),
     menuSubmit:        document.getElementById("mgmtMenuSubmit"),
     menuFeedback:      document.getElementById("mgmtMenuFeedback"),
     emailWarning:      document.getElementById("mgmtEmailWarning"),
@@ -64,6 +65,14 @@
     forecast:          document.getElementById("mgmtForecast"),
     heatmap:           document.getElementById("mgmtHeatmap"),
     weekly:            document.getElementById("mgmtWeekly"),
+    // Accounting
+    accountingMonth:       document.getElementById("accountingMonth"),
+    accountingExportBtn:   document.getElementById("accountingExportBtn"),
+    accountingUpdatedAt:   document.getElementById("accountingUpdatedAt"),
+    accountingKpis:        document.getElementById("accountingKpis"),
+    accountingStability:   document.getElementById("accountingStability"),
+    accountingRecommendations: document.getElementById("accountingRecommendations"),
+    accountingDaily:       document.getElementById("accountingDaily"),
     // Manual sale modal
     manualSaleButton:   document.getElementById("mgmtManualSaleButton"),
     manualSaleDialog:   document.getElementById("manualSaleDialog"),
@@ -119,11 +128,12 @@
       els.tabs.querySelectorAll(".admin-tab").forEach(function (t) { t.classList.remove("is-active"); });
       btn.classList.add("is-active");
       var targetId = btn.dataset.tab;
-      ["mgmtOperationsTab", "mgmtInsightsTab"].forEach(function (id) {
+      ["mgmtOperationsTab", "mgmtInsightsTab", "mgmtAccountingTab"].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.hidden = (el.id !== targetId);
       });
-      if (targetId === "mgmtInsightsTab") refreshAnalytics();
+      if (targetId === "mgmtInsightsTab")   refreshAnalytics();
+      if (targetId === "mgmtAccountingTab") refreshAccounting();
     });
   }
 
@@ -201,11 +211,12 @@
 
     // Pre-fill form with this day's existing menu if available
     if (!isSaving) {
-      var day = weekMenus.find(function (d) { return d.date === dayKey; });
+      var day  = weekMenus.find(function (d) { return d.date === dayKey; });
       var menu = day && day.menu;
-      if (els.menuTitleInput)  els.menuTitleInput.value  = menu ? menu.title       : "";
-      if (els.menuDescInput)   els.menuDescInput.value   = menu ? menu.description : "";
-      if (els.menuPriceInput)  els.menuPriceInput.value  = menu ? menu.price       : "";
+      if (els.menuTitleInput) els.menuTitleInput.value = menu ? menu.title       : "";
+      if (els.menuDescInput)  els.menuDescInput.value  = menu ? menu.description : "";
+      if (els.menuPriceInput) els.menuPriceInput.value = menu ? menu.price       : "";
+      if (els.menuCostInput)  els.menuCostInput.value  = (menu && menu.cost_per_dish) ? menu.cost_per_dish : "";
     }
 
     // Refresh the visual selection state in the grid
@@ -446,6 +457,161 @@
     els.weekly.innerHTML = html;
   }
 
+  // ── Accounting rendering (ADMIN only) ────────────────────────────
+
+  var PRIORITY_LABELS = { high: "Alta prioridad", medium: "Importante", info: "Información" };
+
+  function renderAccountingRecommendations(recs) {
+    if (!els.accountingRecommendations) return;
+    if (!recs || !recs.length) {
+      els.accountingRecommendations.innerHTML =
+        '<p class="insights-empty">Sin recomendaciones para este período.</p>';
+      return;
+    }
+    var html = '<div class="rec-list">';
+    recs.forEach(function (r) {
+      var cls = "rec-card rec-card--" + (r.priority || "info");
+      html +=
+        '<div class="' + cls + '">' +
+          '<div class="rec-card__header">' +
+            '<span class="rec-card__badge">' + escHtml(PRIORITY_LABELS[r.priority] || "Aviso") + '</span>' +
+            '<strong class="rec-card__title">' + escHtml(r.title) + '</strong>' +
+          '</div>' +
+          '<p class="rec-card__body">' + escHtml(r.message) + '</p>' +
+        '</div>';
+    });
+    html += '</div>';
+    els.accountingRecommendations.innerHTML = html;
+  }
+
+  function renderAccountingKpis(summary) {
+    if (!els.accountingKpis) return;
+    if (!summary) {
+      els.accountingKpis.innerHTML = '<p class="insights-empty">Sin datos.</p>';
+      return;
+    }
+
+    var hasCost = summary.estimatedCosts !== null;
+
+    function kpi(label, value, sub, highlight) {
+      return '<div class="kpi-card' + (highlight ? ' kpi-card--highlight' : '') + '">' +
+        '<span class="kpi-card__label">' + escHtml(label) + '</span>' +
+        '<strong class="kpi-card__value">' + escHtml(String(value)) + '</strong>' +
+        (sub ? '<span class="kpi-card__sub">' + escHtml(sub) + '</span>' : '') +
+        '</div>';
+    }
+
+    var html = '<div class="accounting-kpis">';
+    html += kpi("Ingresos brutos",  fmt.currency(summary.grossRevenue), null, true);
+    if (hasCost) {
+      html += kpi("Costos estimados", fmt.currency(summary.estimatedCosts));
+      html += kpi("Ganancia estimada", fmt.currency(summary.estimatedProfit),
+        "Margen: " + summary.profitMarginPct + "%", true);
+    }
+    html += kpi("Almuerzos vendidos", summary.totalMealsSold + " platos",
+      summary.activeDays + " días activos");
+    html += kpi("Cupos sin vender",  summary.totalWastedMeals + " en total",
+      "Prom. " + Math.round(summary.avgWaste * 10) / 10 + "/día");
+    html += kpi("Efectivo",  fmt.currency(summary.cashRevenue));
+    html += kpi("SINPE",     fmt.currency(summary.sinpeRevenue));
+    html += kpi("Créditos",  fmt.currency(summary.creditRevenue),
+      summary.avgCreditValuePerMeal > 0
+        ? "Valor promedio por crédito: " + fmt.currency(summary.avgCreditValuePerMeal)
+        : null);
+    html += '</div>';
+
+    els.accountingKpis.innerHTML = html;
+  }
+
+  function renderAccountingStability(summary) {
+    if (!els.accountingStability) return;
+    if (!summary || summary.totalMealsSold === 0) {
+      els.accountingStability.innerHTML = '<p class="insights-empty">Sin ventas en este período.</p>';
+      return;
+    }
+
+    var alacarteCount = summary.alacarteMeals;
+    var creditCount   = summary.creditMeals;
+    var total         = summary.totalMealsSold;
+    var pkgPct        = Math.round((creditCount / total) * 100);
+    var alaCartePct   = 100 - pkgPct;
+
+    var barColor = pkgPct >= 30 ? "var(--success)" : pkgPct >= 15 ? "var(--warning)" : "var(--primary)";
+
+    els.accountingStability.innerHTML =
+      '<div class="stability-block">' +
+        '<div class="stability-labels">' +
+          '<span>A la carta <strong>' + alacarteCount + '</strong> (' + alaCartePct + '%)</span>' +
+          '<span>Paquetes <strong>' + creditCount + '</strong> (' + pkgPct + '%)</span>' +
+        '</div>' +
+        '<div class="stability-bar">' +
+          '<div class="stability-bar__fill stability-bar__fill--alacarte" style="width:' + alaCartePct + '%"></div>' +
+          '<div class="stability-bar__fill stability-bar__fill--package" style="width:' + pkgPct + '%;background:' + barColor + '"></div>' +
+        '</div>' +
+        '<p class="stability-note">' +
+          (pkgPct >= 30
+            ? 'Tienes una base sólida de ingresos garantizados por paquetes.'
+            : 'Menos del 30% de tus ventas son de paquetes. Mayor proporción = ingresos más predecibles.') +
+        '</p>' +
+      '</div>';
+  }
+
+  function renderAccountingDaily(daily) {
+    if (!els.accountingDaily) return;
+    if (!daily || !daily.length) {
+      els.accountingDaily.innerHTML = '<p class="insights-empty">Sin ventas registradas en este período.</p>';
+      return;
+    }
+
+    var hasCost = daily.some(function (d) { return d.costPerDish > 0; });
+
+    var head =
+      '<div class="acc-daily-head">' +
+        '<span>Fecha / Menú</span>' +
+        '<span>Vendidos / Cupo</span>' +
+        '<span>Ingresos</span>' +
+        (hasCost ? '<span>Costo / Ganancia</span>' : '') +
+        '<span>Paquetes</span>' +
+      '</div>';
+
+    var rows = daily.map(function (d) {
+      var dateLabel  = new Intl.DateTimeFormat("es-CR", { day: "2-digit", month: "short", weekday: "short", timeZone: "UTC" })
+                         .format(new Date(d.date + "T12:00:00Z"));
+      var wasteClass = d.wastedMeals > 3 ? " acc-waste--high" : d.wastedMeals > 0 ? " acc-waste--low" : "";
+      var costCell   = hasCost
+        ? '<span class="acc-daily__cost">' +
+            (d.costPerDish > 0
+              ? fmt.currency(d.estimatedCost) + '<br><span class="' +
+                (d.estimatedProfit >= 0 ? 'acc-profit--pos' : 'acc-profit--neg') + '">' +
+                (d.estimatedProfit >= 0 ? '+' : '') + fmt.currency(d.estimatedProfit) +
+                (d.profitMarginPct !== null ? ' (' + d.profitMarginPct + '%)' : '') +
+                '</span>'
+              : '<span class="muted">Sin costo</span>') +
+          '</span>'
+        : '';
+      return '<div class="acc-daily__row">' +
+        '<span class="acc-daily__date"><strong>' + escHtml(dateLabel) + '</strong><br>' +
+          '<span class="muted" style="font-size:0.8rem">' + escHtml(d.menuTitle) + '</span></span>' +
+        '<span class="acc-daily__meals">' +
+          '<strong>' + d.mealsSold + '</strong> / ' + d.maxMeals +
+          '<br><span class="' + (wasteClass ? 'acc-waste' + wasteClass : 'muted') + '" style="font-size:0.8rem">' +
+          (d.wastedMeals > 0 ? d.wastedMeals + ' sin vender' : 'Lleno') + '</span></span>' +
+        '<span class="acc-daily__revenue">' + fmt.currency(d.grossRevenue) + '<br>' +
+          '<span style="font-size:0.75rem;color:var(--muted)">SINPE ' + fmt.currency(d.sinpeRevenue) +
+          ' · Cash ' + fmt.currency(d.cashRevenue) + '</span></span>' +
+        costCell +
+        '<span class="acc-daily__pkg">' +
+          (d.creditRedemptions > 0
+            ? '<span class="pkg-badge">' + d.creditRedemptions + ' crédito' + (d.creditRedemptions !== 1 ? 's' : '') + '</span>'
+            : '<span class="muted">—</span>') +
+        '</span>' +
+      '</div>';
+    }).join("");
+
+    els.accountingDaily.innerHTML =
+      '<div class="acc-daily-table">' + head + '<div class="acc-daily-body">' + rows + '</div></div>';
+  }
+
   // ── Data fetching ─────────────────────────────────────────────────
 
   async function loadWeekMenus() {
@@ -504,6 +670,46 @@
     }
   }
 
+  async function refreshAccounting() {
+    if (!els.accountingMonth) return;
+    var month = els.accountingMonth.value; // "YYYY-MM"
+    if (!month) return;
+
+    if (els.accountingUpdatedAt) els.accountingUpdatedAt.textContent = "Cargando reporte...";
+    if (els.accountingRecommendations) els.accountingRecommendations.innerHTML = '<p class="insights-empty">Calculando...</p>';
+    if (els.accountingKpis)            els.accountingKpis.innerHTML = '<p class="insights-empty">Calculando...</p>';
+    if (els.accountingStability)       els.accountingStability.innerHTML = '<p class="insights-empty">Calculando...</p>';
+    if (els.accountingDaily)           els.accountingDaily.innerHTML = '<p class="insights-empty">Calculando...</p>';
+
+    try {
+      var payload = await api.fetchJson("/accounting", { method: "POST", body: { month } });
+      if (els.accountingUpdatedAt) els.accountingUpdatedAt.textContent = fmt.dateTime(payload.updatedAt);
+      renderAccountingRecommendations(payload.recommendations);
+      renderAccountingKpis(payload.summary);
+      renderAccountingStability(payload.summary);
+      renderAccountingDaily(payload.daily);
+    } catch (err) {
+      if (els.accountingUpdatedAt) els.accountingUpdatedAt.textContent = "Error al cargar el reporte";
+      if (els.accountingRecommendations) els.accountingRecommendations.innerHTML =
+        '<p class="insights-empty">No se pudo cargar el reporte: ' + escHtml(err.message) + '</p>';
+    }
+  }
+
+  async function exportAccounting() {
+    if (!els.accountingExportBtn || !els.accountingMonth) return;
+    var month = els.accountingMonth.value;
+    if (!month) { setFeedback("Selecciona un mes antes de exportar.", true); return; }
+
+    els.accountingExportBtn.disabled = true;
+    try {
+      await api.downloadFile("/accounting-export", { month }, "rentabilidad-" + month + ".csv");
+    } catch (err) {
+      setFeedback(err.message, true);
+    } finally {
+      els.accountingExportBtn.disabled = false;
+    }
+  }
+
   async function loadAll() {
     banner.setSyncing();
     if (userRole === "ADMIN") {
@@ -519,11 +725,13 @@
     event.preventDefault();
     if (isSaving) return;
 
-    var fd    = new FormData(els.menuForm);
-    var title = String(fd.get("title") || "").trim();
-    var desc  = String(fd.get("description") || "").trim();
-    var price = Number(fd.get("price") || 0);
+    var fd     = new FormData(els.menuForm);
+    var title  = String(fd.get("title") || "").trim();
+    var desc   = String(fd.get("description") || "").trim();
+    var price  = Number(fd.get("price") || 0);
     var dayKey = String(fd.get("dayKey") || selectedDayKey || "").trim();
+    var costRaw = fd.get("cost");
+    var cost   = (costRaw !== null && costRaw !== "") ? Number(costRaw) : null;
 
     if (!title || !desc || price < 0) {
       setFeedback("Complete el nombre, descripción y precio.", true);
@@ -542,7 +750,7 @@
     try {
       var result = await api.fetchJson("/menu", {
         method: "POST",
-        body:   { menu: { title, description: desc, price }, dayKey }
+        body:   { menu: { title, description: desc, price, cost }, dayKey }
       });
       setFeedback(result.message || "Menú actualizado correctamente.", false);
       clearEmailWarning();
@@ -757,6 +965,17 @@
 
     if (els.menuForm)     els.menuForm.addEventListener("submit", submitMenu);
     if (els.exportButton) els.exportButton.addEventListener("click", exportOrders);
+
+    // Accounting module
+    if (els.accountingMonth) {
+      // Default to the current Costa Rica month
+      var crNow = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      els.accountingMonth.value =
+        crNow.getUTCFullYear() + "-" + String(crNow.getUTCMonth() + 1).padStart(2, "0");
+      els.accountingMonth.addEventListener("change", refreshAccounting);
+    }
+    if (els.accountingExportBtn) els.accountingExportBtn.addEventListener("click", exportAccounting);
+
     initManualSaleModal();
     if (els.logoutButton) els.logoutButton.addEventListener("click", function () {
       window.supabaseClient.auth.signOut();

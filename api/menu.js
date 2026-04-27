@@ -67,7 +67,8 @@ export default async function handler(req, res) {
     const menu = await upsertMenu(cafeteriaId, dayKey, {
       title:       String(menuInput.title).trim(),
       description: String(menuInput.description).trim(),
-      price:       Number(menuInput.price)
+      price:       Number(menuInput.price),
+      costPerDish: menuInput.cost !== undefined ? menuInput.cost : menuInput.costPerDish
     });
 
     const [settings, freshMenu, orders, stats] = await Promise.all([
