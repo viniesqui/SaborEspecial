@@ -142,7 +142,7 @@
   }
 
   function renderSnapshot(snapshot) {
-    if (els.updatedAt)         els.updatedAt.textContent         = fmt.dateTime(snapshot.updatedAt);
+    if (els.updatedAt)         els.updatedAt.textContent         = fmt.timeShort(snapshot.updatedAt);
     if (els.totalOrders)       els.totalOrders.textContent       = String(snapshot.totalOrders              || 0);
     if (els.paidOrders)        els.paidOrders.textContent        = String(snapshot.paidOrders               || 0);
     if (els.paidPendingOrders) els.paidPendingOrders.textContent = String(snapshot.paidPendingDeliveryCount  || 0);

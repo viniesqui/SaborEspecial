@@ -284,7 +284,7 @@
         ? "admin-order-status admin-order-status--paid"
         : "admin-order-status admin-order-status--pending";
 
-      node.querySelector(".admin-order-confirmed-at").textContent = order.paymentConfirmedAtLabel || "Pendiente";
+      node.querySelector(".admin-order-confirmed-at").textContent = order.paymentConfirmedAtLabel || "Sin verificar";
 
       node.querySelectorAll(".payment-toggle").forEach(function (btn) {
         btn.classList.toggle("is-selected", btn.dataset.paymentStatus === order.paymentStatus);
