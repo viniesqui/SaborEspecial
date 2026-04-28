@@ -9,16 +9,34 @@ import { getSettings }                                         from "../data/set
 import { sendOrderStatusEmail }                                 from "../lib/email.js";
 import { requireAuth }                                          from "../lib/auth.js";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 function validateOrder(order) {
-  if (!order.buyerName || !order.paymentMethod) {
-    throw new Error("Faltan datos obligatorios.");
+  const name   = String(order.buyerName   || "").trim();
+  const method = String(order.paymentMethod || "").toUpperCase();
+  const email  = String(order.buyerEmail  || "").trim().toLowerCase();
+
+  if (!name) {
+    throw new Error("El nombre del comprador es obligatorio.");
   }
-  const method = String(order.paymentMethod).toUpperCase();
+  if (name.length < 2) {
+    throw new Error("El nombre debe tener al menos 2 caracteres.");
+  }
+  if (name.length > 100) {
+    throw new Error("El nombre no puede exceder 100 caracteres.");
+  }
+  if (!method) {
+    throw new Error("El método de pago es obligatorio.");
+  }
   if (!["SINPE", "EFECTIVO", "CREDITO"].includes(method)) {
     throw new Error("Método de pago inválido.");
   }
-  if (method === "CREDITO" && !String(order.buyerEmail || "").trim()) {
-    throw new Error("El correo electrónico es obligatorio para pagar con crédito.");
+  // Email: required for all digital orders; format-validated when present.
+  if (!email) {
+    throw new Error("El correo electrónico es obligatorio.");
+  }
+  if (!EMAIL_RE.test(email)) {
+    throw new Error("El formato del correo electrónico es inválido.");
   }
 }
 
@@ -26,15 +44,21 @@ function validateTargetDate(targetDate, todayKey) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
     throw new Error("Fecha de pedido inválida.");
   }
+  // Reject any date in the past (strict: must be >= today in CR timezone).
   if (targetDate < todayKey) {
     throw new Error("No se pueden registrar pedidos para fechas pasadas.");
   }
   // Cap at 7 days ahead to prevent arbitrarily far future bookings.
+  // Uses the same CR-offset clock as getDayKey() so the window is consistent.
   const maxDate = new Date(Date.now() - 6 * 60 * 60 * 1000 + 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
   if (targetDate > maxDate) {
     throw new Error("Solo se pueden registrar pedidos con hasta 7 días de anticipación.");
+  }
+  // Guard against a client sending a date that parses as NaN.
+  if (isNaN(Date.parse(targetDate))) {
+    throw new Error("Fecha de pedido inválida.");
   }
 }
 
