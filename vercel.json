@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/s/:slug", "destination": "/customer-app.html" },
+    { "source": "/s/:slug/(.*)", "destination": "/customer-app.html" }
+  ]
+}
