@@ -58,7 +58,7 @@ echo ""
 
 # Load existing .env.local as defaults so re-running is painless.
 SUPABASE_URL=""; SUPABASE_ANON_KEY=""; SUPABASE_SERVICE_ROLE_KEY=""
-DB_PASSWORD=""; ADMIN_SECRET=""; ORDERS_PASSWORD=""
+DATABASE_URL=""; ADMIN_SECRET=""; ORDERS_PASSWORD=""
 CAFETERIA_SLUG="test-cafeteria"
 
 if [ -f .env.local ]; then
@@ -66,7 +66,7 @@ if [ -f .env.local ]; then
   SUPABASE_URL=$(_load SUPABASE_URL)
   SUPABASE_ANON_KEY=$(_load SUPABASE_ANON_KEY)
   SUPABASE_SERVICE_ROLE_KEY=$(_load SUPABASE_SERVICE_ROLE_KEY)
-  DB_PASSWORD=$(_load DB_PASSWORD)
+  DATABASE_URL=$(_load DATABASE_URL)
   ADMIN_SECRET=$(_load ADMIN_SECRET)
   ORDERS_PASSWORD=$(_load ORDERS_PASSWORD)
   CAFETERIA_SLUG=$(_load CAFETERIA_SLUG); CAFETERIA_SLUG="${CAFETERIA_SLUG:-test-cafeteria}"
@@ -78,15 +78,14 @@ read_field "URL del proyecto  (https://xxxx.supabase.co)" SUPABASE_URL    "$SUPA
 read_field "Clave anon"                                    SUPABASE_ANON_KEY        "$SUPABASE_ANON_KEY"        "secret"
 read_field "Clave service_role"                            SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY" "secret"
 echo ""
-echo "  Para migrar el esquema sin abrir el navegador, necesitamos la"
-echo "  contraseña de PostgreSQL de tu proyecto."
-echo "  Supabase Dashboard → Settings → Database → Database password"
+echo "  Para migrar el esquema necesitamos la cadena de conexión de tu proyecto."
+echo "  Supabase Dashboard → Settings → Database → Connection string"
+echo "  Selecciona 'Session pooler' y copia el URI completo."
+echo "  Luego reemplaza [YOUR-PASSWORD] con tu contraseña real."
 echo ""
-read_field "Contraseña de base de datos"                   DB_PASSWORD "$DB_PASSWORD" "secret"
+read_field "Database URL (postgresql://postgres.xxx:[password]@...)" DATABASE_URL "$DATABASE_URL" "secret"
 
 SUPABASE_URL="${SUPABASE_URL%/}"
-PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co.*||')
-DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:5432/postgres"
 
 # Auto-generate local secrets on first run.
 [ -z "$ADMIN_SECRET"    ] && ADMIN_SECRET=$(token)
@@ -99,7 +98,6 @@ SUPABASE_URL=${SUPABASE_URL}
 SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 DATABASE_URL=${DATABASE_URL}
-DB_PASSWORD=${DB_PASSWORD}
 APP_BASE_URL=http://localhost:3000
 ADMIN_SECRET=${ADMIN_SECRET}
 ORDERS_PASSWORD=${ORDERS_PASSWORD}
