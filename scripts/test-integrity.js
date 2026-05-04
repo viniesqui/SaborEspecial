@@ -12,6 +12,8 @@
  *   CAFETERIA_B_ID      – cafeteria_id UUID of the other tenant (Cafeteria B)
  */
 
+import "./env.js";
+import pg from "pg";
 import { getDayKey, buildDashboardSnapshot } from "../lib/dashboard.js";
 
 // ── Terminal helpers ──────────────────────────────────────────────────────────
@@ -441,6 +443,80 @@ const end   = new Date(\`\${today}T\${salesEnd}:00-06:00\`);`,
     `\n  ${B}Audit summary:${Z} ${R}${highCount} HIGH${Z}  ${Y}${medCount} MEDIUM${Z}  ${D}${lowCount} LOW${Z}`
   );
   console.log(`  ${D}HIGH findings must be resolved before the 12:00 PM launch.${Z}`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SUITE 6 · ORDERS SCHEMA INTEGRITY
+// ─────────────────────────────────────────────────────────────────────────────
+// Prevents the class of bug where the repository layer (data/orders.repo.js,
+// api/track.js, api/admin-orders.js, api/deliveries.js, etc.) SELECTs columns
+// that no migration ever created.  Migration 016 fixed the missing
+// `tracking_token` column; this suite makes that drift a CI failure instead
+// of a runtime 500.
+//
+// Required columns are derived from every column the repo/API layer reads
+// or writes against the `orders` table.
+//
+// Skips gracefully when DATABASE_URL is absent (e.g. local unit-test runs).
+// Required in the deploy pipeline — see .github/workflows/integrity.yml.
+// ═════════════════════════════════════════════════════════════════════════════
+
+section("6 · Orders Schema Integrity  [INTEGRATION]");
+
+{
+  const REQUIRED_ORDERS_COLUMNS = [
+    "tracking_token",
+    "target_date",
+    "order_channel",
+    "created_by_staff",
+    "sale_type",
+    "package_id",
+    "buyer_email",
+    "payment_verified_by",
+    "prepared_at",
+    "ready_at"
+  ];
+
+  const dbUrl = process.env.DATABASE_URL;
+
+  if (!dbUrl) {
+    skip(
+      "orders table contains every column the repo layer SELECTs",
+      "set DATABASE_URL (staging Postgres connection string)"
+    );
+  } else {
+    const client = new pg.Client({
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    try {
+      await client.connect();
+
+      const { rows } = await client.query(
+        `SELECT column_name
+           FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name   = 'orders'`
+      );
+      const present = new Set(rows.map((r) => r.column_name));
+
+      for (const col of REQUIRED_ORDERS_COLUMNS) {
+        assert(
+          present.has(col),
+          `orders.${col} exists`,
+          present.has(col) ? "" :
+            `MISSING — repo/API references this column but no migration created it. ` +
+            `Add an ALTER TABLE in a new supabase/migrations/NNN_*.sql file.`
+        );
+      }
+    } catch (err) {
+      failed++;
+      console.log(`  ${FAIL}  orders schema introspection failed  ${D}← ${err.message}${Z}`);
+    } finally {
+      await client.end().catch(() => null);
+    }
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
