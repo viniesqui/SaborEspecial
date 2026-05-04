@@ -113,17 +113,28 @@ END $$;
 
 
 -- ============================================================
--- PRE-DROP: Remove all overloads of functions being replaced here.
--- Prevents "function name not unique" on unqualified REVOKE/GRANT
--- and "cannot change return type" on CREATE OR REPLACE.
+-- PRE-DROP: Remove every overload of the functions being replaced.
+-- Uses pg_proc so it catches any signature, not just known ones.
 -- ============================================================
-DROP FUNCTION IF EXISTS create_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,TEXT,UUID);
-DROP FUNCTION IF EXISTS create_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,TEXT,UUID,DATE,TEXT,BOOLEAN,TEXT);
-DROP FUNCTION IF EXISTS create_credit_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,UUID,DATE);
-DROP FUNCTION IF EXISTS create_package_order(UUID,DATE,TEXT,TEXT,UUID,TEXT,NUMERIC,TEXT,UUID);
-DROP FUNCTION IF EXISTS get_day_stats(UUID,DATE);
-DROP FUNCTION IF EXISTS get_credit_balance(UUID,TEXT);
-DROP FUNCTION IF EXISTS add_credits(UUID,TEXT,INTEGER);
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure::text AS sig
+    FROM   pg_proc
+    WHERE  proname IN (
+             'create_order_atomic',
+             'create_credit_order_atomic',
+             'create_package_order',
+             'get_day_stats',
+             'get_credit_balance',
+             'add_credits'
+           )
+    AND    pronamespace = 'public'::regnamespace
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.sig;
+  END LOOP;
+END $$;
 
 
 -- ============================================================
