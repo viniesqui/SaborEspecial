@@ -1,0 +1,30 @@
+name: Integrity tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: npm test (schema + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      # DATABASE_URL is required for SUITE 6 (orders schema integrity).
+      # Configure as a repository secret pointing at a STAGING Postgres
+      # instance — never production.  Without it, suite 6 skips and the
+      # schema-drift check is not enforced.
+      - name: Run integrity suite
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npm test
