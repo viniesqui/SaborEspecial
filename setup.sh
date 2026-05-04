@@ -86,7 +86,7 @@ read_field "Contraseña de base de datos"                   DB_PASSWORD "$DB_PAS
 
 SUPABASE_URL="${SUPABASE_URL%/}"
 PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co.*||')
-DATABASE_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+DATABASE_URL="postgresql://postgres:${DB_PASSWORD}@db.${PROJECT_REF}.supabase.co:5432/postgres"
 
 # Auto-generate local secrets on first run.
 [ -z "$ADMIN_SECRET"    ] && ADMIN_SECRET=$(token)
