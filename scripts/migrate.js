@@ -72,7 +72,8 @@ async function run() {
         err.code === "42710" || // duplicate_object (ENUM, etc.)
         err.code === "42P07" || // duplicate_table
         err.code === "42723" || // duplicate_function
-        err.code === "42701";   // duplicate_column
+        err.code === "42701" || // duplicate_column
+        err.code === "42P13";   // cannot change return type of existing function
 
       if (alreadyExists) {
         await client.query(

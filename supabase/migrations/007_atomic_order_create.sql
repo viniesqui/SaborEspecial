@@ -19,6 +19,8 @@
 -- FUNCTION 1: create_order_atomic
 -- ============================================================
 
+DROP FUNCTION IF EXISTS create_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,TEXT,UUID);
+
 CREATE OR REPLACE FUNCTION create_order_atomic(
   p_cafeteria_id      UUID,
   p_day_key           DATE,
@@ -87,6 +89,8 @@ $$;
 -- ============================================================
 -- FUNCTION 2: get_day_stats
 -- ============================================================
+
+DROP FUNCTION IF EXISTS get_day_stats(UUID,DATE);
 
 CREATE OR REPLACE FUNCTION get_day_stats(
   p_cafeteria_id UUID,
