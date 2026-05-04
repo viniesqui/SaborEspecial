@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # setup.sh — zero-touch environment initialisation.
 # git clone → npm run setup → npm start. That's it.
+#
+# Any variable can be pre-set to skip its prompt, e.g.:
+#   DATABASE_URL="postgresql://..." npm run setup
 set -euo pipefail
+
+# Capture env-provided values before anything overwrites them.
+_ENV_DATABASE_URL="${DATABASE_URL:-}"
+_ENV_SUPABASE_URL="${SUPABASE_URL:-}"
+_ENV_SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+_ENV_SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
 BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -74,16 +83,27 @@ if [ -f .env.local ]; then
   echo ""
 fi
 
-read_field "URL del proyecto  (https://xxxx.supabase.co)" SUPABASE_URL    "$SUPABASE_URL"
-read_field "Clave anon"                                    SUPABASE_ANON_KEY        "$SUPABASE_ANON_KEY"        "secret"
-read_field "Clave service_role"                            SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY" "secret"
-echo ""
-echo "  Para migrar el esquema necesitamos la cadena de conexión de tu proyecto."
-echo "  Supabase Dashboard → Settings → Database → Connection string"
-echo "  Selecciona 'Session pooler' y copia el URI completo."
-echo "  Luego reemplaza [YOUR-PASSWORD] con tu contraseña real."
-echo ""
-read_field "Database URL (postgresql://postgres.xxx:[password]@...)" DATABASE_URL "$DATABASE_URL" "secret"
+# Env-provided values always override .env.local defaults.
+[ -n "$_ENV_SUPABASE_URL"              ] && SUPABASE_URL="$_ENV_SUPABASE_URL"
+[ -n "$_ENV_SUPABASE_ANON_KEY"         ] && SUPABASE_ANON_KEY="$_ENV_SUPABASE_ANON_KEY"
+[ -n "$_ENV_SUPABASE_SERVICE_ROLE_KEY" ] && SUPABASE_SERVICE_ROLE_KEY="$_ENV_SUPABASE_SERVICE_ROLE_KEY"
+[ -n "$_ENV_DATABASE_URL"              ] && DATABASE_URL="$_ENV_DATABASE_URL"
+
+[ -n "$SUPABASE_URL"              ] && ok "SUPABASE_URL (del entorno o .env.local)" || read_field "URL del proyecto  (https://xxxx.supabase.co)" SUPABASE_URL    "$SUPABASE_URL"
+[ -n "$SUPABASE_ANON_KEY"         ] && ok "SUPABASE_ANON_KEY (del entorno o .env.local)" || read_field "Clave anon"        SUPABASE_ANON_KEY        "$SUPABASE_ANON_KEY"        "secret"
+[ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && ok "SUPABASE_SERVICE_ROLE_KEY (del entorno o .env.local)" || read_field "Clave service_role" SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY" "secret"
+
+if [ -n "$DATABASE_URL" ]; then
+  ok "DATABASE_URL (del entorno o .env.local)"
+else
+  echo ""
+  echo "  Para migrar el esquema necesitamos la cadena de conexión de tu proyecto."
+  echo "  Supabase Dashboard → Settings → Database → Connection string"
+  echo "  Selecciona 'Session pooler' y copia el URI completo."
+  echo "  Luego reemplaza [YOUR-PASSWORD] con tu contraseña real."
+  echo ""
+  read_field "Database URL (postgresql://postgres.xxx:[password]@...)" DATABASE_URL "$DATABASE_URL" "secret"
+fi
 
 SUPABASE_URL="${SUPABASE_URL%/}"
 
