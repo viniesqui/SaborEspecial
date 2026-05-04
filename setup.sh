@@ -150,7 +150,7 @@ CAFE_ID=$(echo "${SEED_OUT}" | grep '^ID:'   | sed 's/^ID://'   || true)
 
 [ -n "$SLUG" ] && {
   ok "Cafetería: ${SLUG}"
-  sed -i "s|^CAFETERIA_SLUG=.*|CAFETERIA_SLUG=${SLUG}|" .env.local
+  tmp=$(mktemp) && sed "s|^CAFETERIA_SLUG=.*|CAFETERIA_SLUG=${SLUG}|" .env.local > "$tmp" && mv "$tmp" .env.local
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────────
@@ -161,12 +161,16 @@ echo -e "${BOLD}${GREEN}╔═════════════════�
 echo    "║  Listo.                                              ║"
 echo -e "╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Admin password:   ${BOLD}${ADMIN_SECRET}${NC}"
-echo -e "  Kitchen password: ${BOLD}${ORDERS_PASSWORD}${NC}"
+echo -e "  Cuentas demo (login en http://localhost:3000):"
+echo -e "    Admin   →  ${BOLD}admin@demo.local${NC}   /  ${BOLD}demo1234${NC}"
+echo -e "    Cocina  →  ${BOLD}cocina@demo.local${NC}  /  ${BOLD}demo1234${NC}"
+echo ""
+echo -e "  Tokens de respaldo (para llamadas directas a la API):"
+echo -e "    Admin password:   ${BOLD}${ADMIN_SECRET}${NC}"
+echo -e "    Kitchen password: ${BOLD}${ORDERS_PASSWORD}${NC}"
 echo ""
 echo -e "  ${BOLD}npm start${NC}  →  luego abre:"
 echo ""
 echo -e "    Clientes  →  ${BOLD}http://localhost:3000/s/${SLUG}${NC}"
-echo -e "    Admin     →  ${BOLD}http://localhost:3000/management.html?slug=${SLUG}${NC}"
-echo -e "    Cocina    →  ${BOLD}http://localhost:3000/deliveries.html?slug=${SLUG}${NC}"
+echo -e "    Login     →  ${BOLD}http://localhost:3000/${NC}  (redirige según rol)"
 echo ""

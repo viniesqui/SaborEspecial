@@ -49,7 +49,10 @@ async function seed() {
     .maybeSingle();
 
   if (existing) {
-    console.log(`Cafetería ya existe — omitiendo.`);
+    // Ensure demo users exist on re-runs too.
+    await ensureDemoUser(existing.id, "admin@demo.local",  "demo1234", "ADMIN");
+    await ensureDemoUser(existing.id, "cocina@demo.local", "demo1234", "ORDERS");
+    console.log(`Cafetería ya existe — usuarios demo verificados.`);
     console.log(`SLUG:${existing.slug}`);
     console.log(`ID:${existing.id}`);
     return;
@@ -104,9 +107,41 @@ async function seed() {
     throw new Error(`menus insert: ${menuError.message}`);
   }
 
+  // 4. Demo users — admin + kitchen — linked to this cafetería.
+  await ensureDemoUser(cafeteriaId, "admin@demo.local",  "demo1234", "ADMIN");
+  await ensureDemoUser(cafeteriaId, "cocina@demo.local", "demo1234", "ORDERS");
+
   console.log(`Cafetería creada exitosamente.`);
   console.log(`SLUG:${CAFETERIA_SLUG}`);
   console.log(`ID:${cafeteriaId}`);
+}
+
+async function ensureDemoUser(cafeteriaId, email, password, role) {
+  // Look up the user by email; create if missing.
+  const { data: list } = await supabase.auth.admin.listUsers();
+  const existing = list && list.users && list.users.find((u) => u.email === email);
+
+  let userId;
+  if (existing) {
+    userId = existing.id;
+  } else {
+    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (createErr) throw new Error(`auth.admin.createUser(${email}): ${createErr.message}`);
+    userId = created.user.id;
+  }
+
+  // Link to cafeteria with role (idempotent).
+  const { error: linkErr } = await supabase
+    .from("cafeteria_users")
+    .upsert(
+      { cafeteria_id: cafeteriaId, user_id: userId, role },
+      { onConflict: "cafeteria_id,user_id" }
+    );
+  if (linkErr) throw new Error(`cafeteria_users link(${email}): ${linkErr.message}`);
 }
 
 seed().catch((err) => {
