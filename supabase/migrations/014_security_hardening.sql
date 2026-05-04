@@ -113,6 +113,20 @@ END $$;
 
 
 -- ============================================================
+-- PRE-DROP: Remove all overloads of functions being replaced here.
+-- Prevents "function name not unique" on unqualified REVOKE/GRANT
+-- and "cannot change return type" on CREATE OR REPLACE.
+-- ============================================================
+DROP FUNCTION IF EXISTS create_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,TEXT,UUID);
+DROP FUNCTION IF EXISTS create_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,TEXT,UUID,DATE,TEXT,BOOLEAN,TEXT);
+DROP FUNCTION IF EXISTS create_credit_order_atomic(UUID,DATE,TEXT,TEXT,UUID,TEXT,TEXT,NUMERIC,UUID,DATE);
+DROP FUNCTION IF EXISTS create_package_order(UUID,DATE,TEXT,TEXT,UUID,TEXT,NUMERIC,TEXT,UUID);
+DROP FUNCTION IF EXISTS get_day_stats(UUID,DATE);
+DROP FUNCTION IF EXISTS get_credit_balance(UUID,TEXT);
+DROP FUNCTION IF EXISTS add_credits(UUID,TEXT,INTEGER);
+
+
+-- ============================================================
 -- PART 4: Revoke EXECUTE from PUBLIC on mutation functions
 -- ============================================================
 -- All legitimate callers go through the Node.js backend, which uses
