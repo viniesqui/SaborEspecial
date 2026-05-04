@@ -3,6 +3,21 @@
 // Tracks applied migrations in a _migrations table so it's safe to run repeatedly.
 // Each migration runs in a transaction — partial failures are rolled back cleanly.
 //
+// ── Enum-extension policy ────────────────────────────────────────────────────
+// PostgreSQL forbids using a value created by ALTER TYPE … ADD VALUE inside
+// the same transaction that added it. Wrapping such a statement in
+// BEGIN/COMMIT is fine on its own, but mixing it with later DDL/DML that
+// references the new value in the same file produces an opaque
+// "unsafe use of new value" error at runtime.
+//
+// Policy enforced by this runner:
+//   1. Migration files that contain ALTER TYPE … ADD VALUE must contain
+//      ONLY enum extensions (and comments/whitespace). Mixed files are
+//      rejected with a clear message — split them into two migrations.
+//   2. Enum-only files are executed statement-by-statement WITHOUT a
+//      surrounding BEGIN/COMMIT, so each ADD VALUE auto-commits before
+//      anything else can reference it.
+//
 // Usage:
 //   DATABASE_URL=postgresql://... node scripts/migrate.js
 //   npm run init-db   (reads DATABASE_URL from .env.local automatically)
@@ -27,6 +42,48 @@ if (!DB_URL) {
 }
 
 const client = new Client({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } });
+
+// ── Enum-extension detection ────────────────────────────────────────────────
+// Strip line comments and block comments, then look for ALTER TYPE … ADD VALUE.
+// If found, verify nothing else lives in the file.
+const ENUM_ADD_RE      = /ALTER\s+TYPE\s+[\w."]+\s+ADD\s+VALUE\b/gi;
+const ENUM_ADD_STMT_RE = /^\s*ALTER\s+TYPE\s+[\w."]+\s+ADD\s+VALUE\b/i;
+
+function stripSqlComments(sql) {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
+    .replace(/--[^\n]*/g, "");        // line comments
+}
+
+function splitStatements(sql) {
+  // Naive splitter: enum-only files contain plain ALTER TYPE statements with
+  // no string literals or dollar-quoted bodies, so a simple semicolon split
+  // is safe here.
+  return sql
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function classify(sql) {
+  const stripped = stripSqlComments(sql);
+  const enumAdds = stripped.match(ENUM_ADD_RE) || [];
+  if (enumAdds.length === 0) return { kind: "regular" };
+
+  const statements     = splitStatements(stripped);
+  const nonEnumPresent = statements.some((stmt) => !ENUM_ADD_STMT_RE.test(stmt));
+
+  if (nonEnumPresent) {
+    return {
+      kind:    "mixed",
+      message:
+        "Mixed migration: ALTER TYPE … ADD VALUE statements cannot share a file with " +
+        "other DDL/DML. Move the enum additions into their own migration file " +
+        "(see scripts/migrate.js header for the policy)."
+    };
+  }
+  return { kind: "enum-only", statements };
+}
 
 async function run() {
   await client.connect();
@@ -54,7 +111,44 @@ async function run() {
       continue;
     }
 
-    const sql = readFileSync(join(dir, file), "utf8");
+    const sql        = readFileSync(join(dir, file), "utf8");
+    const classified = classify(sql);
+
+    if (classified.kind === "mixed") {
+      throw new Error(`[${file}] ${classified.message}`);
+    }
+
+    // Enum-only files run statement-by-statement OUTSIDE a transaction so
+    // each ADD VALUE auto-commits before the next statement runs. The
+    // _migrations bookkeeping is wrapped in its own micro-transaction so
+    // a partial failure does not mark the file as applied.
+    if (classified.kind === "enum-only") {
+      try {
+        for (const stmt of classified.statements) {
+          await client.query(stmt);
+        }
+        await client.query(
+          "INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING",
+          [file]
+        );
+        console.log(`  ✓     ${file}  (enum-only, autocommit)`);
+        count++;
+        continue;
+      } catch (err) {
+        // ALTER TYPE … ADD VALUE IF NOT EXISTS already swallows duplicates,
+        // but tolerate 42710 (duplicate_object) for older syntax in 002.
+        if (err.code === "42710") {
+          await client.query(
+            "INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING",
+            [file]
+          );
+          console.log(`  ~     ${file}  (enum value ya existía — marcado como aplicado)`);
+          count++;
+          continue;
+        }
+        throw new Error(`[${file}] ${err.message}`);
+      }
+    }
 
     try {
       await client.query("BEGIN");
