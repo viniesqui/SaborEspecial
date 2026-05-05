@@ -653,7 +653,7 @@
       banner.setSynced();
     } catch (err) {
       setFeedback(err.message, true);
-      banner.setError(loadAll);
+      banner.setError(err.message, err.retryable !== false ? loadAll : null);
     }
   }
 
@@ -762,7 +762,7 @@
       banner.setSynced();
     } catch (err) {
       setFeedback(err.message, true);
-      banner.setError(null);
+      banner.setError(err.message, null);
     } finally {
       isSaving = false;
       els.menuSubmit.disabled = false;
@@ -783,7 +783,7 @@
       else                       clearEmailWarning();
     } catch (err) {
       setFeedback(err.message, true);
-      banner.setError(function () { updatePaymentStatus(orderId, paymentStatus); });
+      banner.setError(err.message, err.retryable !== false ? function () { updatePaymentStatus(orderId, paymentStatus); } : null);
     }
   }
 
@@ -798,7 +798,7 @@
       else                       setFeedback("", false);
     } catch (err) {
       setFeedback(err.message, true);
-      banner.setError(function () { updateDeliveryStatus(orderId, deliveryStatus); });
+      banner.setError(err.message, err.retryable !== false ? function () { updateDeliveryStatus(orderId, deliveryStatus); } : null);
     }
   }
 
@@ -931,7 +931,7 @@
   }
 
   function setBannerSynced() { banner.setSynced(); }
-  function setBannerError(fn) { banner.setError(fn); }
+  function setBannerError(msg, fn) { banner.setError(msg, fn); }
 
   // ── Init ──────────────────────────────────────────────────────────
 

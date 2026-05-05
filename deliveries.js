@@ -176,7 +176,7 @@
       var cached = loadCached();
       if (cached) { renderSnapshot(cached); setFeedback("Mostrando datos guardados.", false); }
       else        { setFeedback("Error al cargar datos: " + err.message, true); }
-      if (navigator.onLine) banner.setError(refreshSnapshot);
+      if (navigator.onLine) banner.setError(err.message, err.retryable !== false ? refreshSnapshot : null);
     }
   }
 
@@ -191,7 +191,7 @@
       setFeedback(snapshot.emailWarning || "", false);
     } catch (err) {
       setFeedback("Error: " + err.message + " — toca el banner para reintentar.", true);
-      banner.setError(function () { updateDeliveryStatus(orderId, deliveryStatus); });
+      banner.setError(err.message, err.retryable !== false ? function () { updateDeliveryStatus(orderId, deliveryStatus); } : null);
     }
   }
 
@@ -206,7 +206,7 @@
       setFeedback(snapshot.emailWarning || "", false);
     } catch (err) {
       setFeedback("Error: " + err.message + " — toca el banner para reintentar.", true);
-      banner.setError(function () { updatePaymentStatus(orderId, paymentStatus); });
+      banner.setError(err.message, err.retryable !== false ? function () { updatePaymentStatus(orderId, paymentStatus); } : null);
     }
   }
 

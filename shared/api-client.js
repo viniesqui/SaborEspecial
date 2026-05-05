@@ -31,16 +31,33 @@
 
       async function fetchJson(path, options) {
         var hasBody = options && options.body !== undefined;
-        var res     = await fetch(baseUrl() + path, {
-          method:  (options && options.method) || "GET",
-          headers: buildHeaders(hasBody),
-          body:    hasBody ? JSON.stringify(options.body) : undefined
-        });
+        var res, payload;
 
-        var payload = await res.json().catch(function () { return null; });
-        if (!res.ok) {
-          throw new Error((payload && payload.message) || "No fue posible completar la solicitud.");
+        try {
+          res = await fetch(baseUrl() + path, {
+            method:  (options && options.method) || "GET",
+            headers: buildHeaders(hasBody),
+            body:    hasBody ? JSON.stringify(options.body) : undefined
+          });
+        } catch (_) {
+          // Network-level failure (offline, DNS, timeout) — retrying may help.
+          var netErr      = new Error("Sin conexión con el servidor. Verifica tu internet.");
+          netErr.retryable = true;
+          throw netErr;
         }
+
+        payload = await res.json().catch(function () { return null; });
+
+        if (!res.ok) {
+          // Server returned a JSON body with a message → known error, show text as-is.
+          // No retry: sending the exact same request again will produce the same failure.
+          // Bare 5xx with no JSON body → transient infra error, retry may help.
+          var serverMsg   = payload && payload.message;
+          var err         = new Error(serverMsg || "No fue posible completar la solicitud.");
+          err.retryable   = !serverMsg;
+          throw err;
+        }
+
         return payload;
       }
 
