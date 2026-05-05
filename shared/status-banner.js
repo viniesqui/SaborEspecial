@@ -46,15 +46,23 @@
       }, 3000);
     }
 
-    function setError(retryFn) {
+    // setError(message, retryFn)
+    //   message  – human-readable reason; falls back to a generic string when absent.
+    //   retryFn  – omit (or pass null) for permanent errors where retrying is pointless.
+    //              Only shown when the caller signals the error is transient (e.g.
+    //              network timeout or bare 5xx with no server message).
+    function setError(message, retryFn) {
       var b = get();
       if (!b) return;
       b.dataset.state = "error";
-      b.textContent   = "Error al sincronizar — toca para reintentar";
-      b.onclick = function () {
-        b.onclick = null;
-        if (retryFn) retryFn();
-      };
+
+      var text = String(message || "Error al sincronizar");
+      if (retryFn) text += " — toca para reintentar";
+      b.textContent = text;
+
+      b.onclick = retryFn
+        ? function () { b.onclick = null; retryFn(); }
+        : null;
     }
 
     return { init: init, setSyncing: setSyncing, setSynced: setSynced, setError: setError };

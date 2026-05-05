@@ -306,7 +306,7 @@
       if (!navigator.onLine) return;
       if (showErrors) {
         setFeedback(err.message, true);
-        banner.setError(function () { refreshSnapshot(true); });
+        banner.setError(err.message, err.retryable !== false ? function () { refreshSnapshot(true); } : null);
       }
     }
   }
@@ -366,7 +366,7 @@
       removeOptimisticOrders();
       els.availableCount.textContent = String(prevAvailable);
       setFeedback(err.message, true);
-      banner.setError(null);
+      banner.setError(err.message, null);
     } finally {
       state.isSubmitting = false;
       // Re-evaluate button state from the current selected day
