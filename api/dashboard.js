@@ -47,7 +47,10 @@ export default async function handler(req, res) {
       getStats(cafeteriaId, dayKey)
     ]);
 
-    const snapshot = buildDashboardSnapshot(settings || {}, menu || {}, orders, stats);
+    // Pass menu through unchanged (may be null). buildDashboardSnapshot now
+    // returns menu: null when absent, so the customer UI can show an empty
+    // state instead of falling back to a placeholder.
+    const snapshot = buildDashboardSnapshot(settings || {}, menu, orders, stats);
 
     // ?week=true — adds weekly menu data for the customer's day-selector UI.
     if (req.query?.week === "true") {
