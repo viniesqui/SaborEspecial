@@ -4,6 +4,50 @@ import { requireAuth }           from "../lib/auth.js";
 
 const PAID = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"];
 
+function escCsv(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function buildCsv(month, summary, daily) {
+  const lines = [];
+  lines.push(`"REPORTE DE RENTABILIDAD - ${month}"`);
+  lines.push("");
+  lines.push(`"Ingresos Brutos",${summary.grossRevenue}`);
+  lines.push(`"  Efectivo",${summary.cashRevenue}`);
+  lines.push(`"  SINPE",${summary.sinpeRevenue}`);
+  lines.push(`"  Créditos (paquetes)",${summary.creditRevenue}`);
+  if (summary.estimatedCosts !== null) {
+    lines.push(`"Costos Estimados",${summary.estimatedCosts}`);
+    lines.push(`"Ganancia Estimada",${summary.estimatedProfit}`);
+    lines.push(`"Margen (%)",${summary.profitMarginPct}`);
+  }
+  lines.push(`"Almuerzos Vendidos",${summary.totalMealsSold}`);
+  lines.push(`"  A la carta",${summary.alacarteMeals}`);
+  lines.push(`"  Paquetes (créditos)",${summary.creditMeals}`);
+  lines.push(`"Cupos sin vender (total)",${summary.totalWastedMeals}`);
+  lines.push(`"Valor promedio por crédito (₡)",${summary.avgCreditValuePerMeal}`);
+  lines.push("");
+  const headers = [
+    "Fecha", "Menú", "Precio (₡)", "Costo por plato (₡)",
+    "Cupo máx.", "Vendidos", "Sin vender",
+    "A la carta", "Créditos",
+    "SINPE (₡)", "Efectivo (₡)", "Créditos (₡)", "Ingresos brutos (₡)",
+    "Costo total (₡)", "Ganancia estimada (₡)", "Margen (%)"
+  ];
+  lines.push(headers.map(escCsv).join(","));
+  daily.forEach(d => {
+    lines.push([
+      d.date, d.menuTitle, d.menuPrice, d.costPerDish || "",
+      d.maxMeals, d.mealsSold, d.wastedMeals,
+      d.alacarteSales, d.creditRedemptions,
+      d.sinpeRevenue, d.cashRevenue, d.creditRevenue, d.grossRevenue,
+      d.estimatedCost ?? "", d.estimatedProfit ?? "", d.profitMarginPct ?? ""
+    ].map(escCsv).join(","));
+  });
+  return "﻿" + lines.join("\n");
+}
+
 // Returns { month, fromDate, toDate } for a given "YYYY-MM" string.
 // Falls back to the current Costa Rica month when omitted.
 function getMonthRange(month) {
@@ -247,6 +291,14 @@ export default async function handler(req, res) {
       activeDays:           activeDates.length,
       cancelledOrders:      cancelledOrders.length
     };
+
+    if (req.body?.action === "export") {
+      const csv      = buildCsv(m, summary, daily);
+      const filename = `rentabilidad-${m}.csv`;
+      res.setHeader("Content-Type",        "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.status(200).send(csv);
+    }
 
     const recommendations = buildRecommendations({ daily, summary, settings });
 

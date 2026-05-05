@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/config.js",        "destination": "/api/config-js"      },
     { "source": "/s/:slug",          "destination": "/customer-app.html"  },
-    { "source": "/s/:slug/(.*)",     "destination": "/customer-app.html"  }
+    { "source": "/s/:slug/(.*)",     "destination": "/customer-app.html"  },
+    { "source": "/api/health",       "destination": "/api/auth-role?health=1" }
   ]
 }
