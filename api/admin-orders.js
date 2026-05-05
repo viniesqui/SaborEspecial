@@ -5,12 +5,7 @@ import { sendOrderStatusEmail }                       from "../lib/email.js";
 import { supabase }                                   from "../lib/supabase.js";
 import { findTodayForAdmin, updatePayment, getStats } from "../data/orders.repo.js";
 import { addCredits }                                 from "../data/credits.repo.js";
-
-const PAID_STATUSES = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"];
-
-function normalizePayment(status) {
-  return PAID_STATUSES.includes(String(status || "").toUpperCase()) ? "PAGADO" : "PENDIENTE_DE_PAGO";
-}
+import { CANONICAL_PAID, toCanonicalPayment }         from "../lib/payment-status.js";
 
 function formatDateTime(value) {
   if (!value) return "";
@@ -36,7 +31,7 @@ function buildSnapshot(orders, stats) {
       buyerEmail:              o.buyer_email        || "",
       buyerPhone:              o.buyer_phone        || "",
       paymentMethod:           o.payment_method     || "",
-      paymentStatus:           normalizePayment(o.payment_status),
+      paymentStatus:           toCanonicalPayment(o.payment_status),
       paymentReference:        o.payment_reference  || "",
       orderChannel:            o.order_channel      || "DIGITAL",
       saleType:                o.sale_type          || "SINGLE_SALE",
@@ -70,7 +65,7 @@ export default async function handler(req, res) {
 
     if (action === "updatePaymentStatus") {
       const orderId       = String(req.body?.orderId      || "");
-      const paymentStatus = normalizePayment(req.body?.paymentStatus);
+      const paymentStatus = toCanonicalPayment(req.body?.paymentStatus);
 
       if (!orderId) {
         return res.status(400).json({ ok: false, message: "Pedido inválido." });
@@ -79,7 +74,7 @@ export default async function handler(req, res) {
       // userId is stored for accounting: which admin confirmed the SINPE transfer.
       await updatePayment(orderId, cafeteriaId, paymentStatus, userId);
 
-      if (paymentStatus === "PAGADO") {
+      if (paymentStatus === CANONICAL_PAID) {
         const { data: row } = await supabase
           .from("orders")
           .select("buyer_name, buyer_email, tracking_token, sale_type, package_id")
