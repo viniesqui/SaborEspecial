@@ -3,11 +3,29 @@ import { handleOptions, setCors }                               from "../lib/htt
 import { getDayKey, isCutoffPassedForDate, buildDashboardSnapshot } from "../lib/dashboard.js";
 import { findBySlug }                                           from "../data/cafeterias.repo.js";
 import { findActive as findActiveMenu }                         from "../data/menus.repo.js";
-import { createAtomic, findToday, getStats }                    from "../data/orders.repo.js";
+import { createAtomic, findToday, getStats, findAll }           from "../data/orders.repo.js";
 import { createCreditOrder }                                    from "../data/credits.repo.js";
 import { getSettings }                                         from "../data/settings.repo.js";
 import { sendOrderStatusEmail }                                 from "../lib/email.js";
 import { requireAuth }                                          from "../lib/auth.js";
+
+function escCsvField(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function buildOrdersCsv(rows) {
+  if (!rows.length) return "﻿";
+  const headers = Object.keys(rows[0]);
+  const lines   = [headers.map(escCsvField).join(",")];
+  rows.forEach((row) => {
+    lines.push(headers.map((h) => {
+      const v = row[h];
+      return escCsvField(v instanceof Date ? v.toISOString() : v);
+    }).join(","));
+  });
+  return "﻿" + lines.join("\n");
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -68,6 +86,20 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
+  }
+
+  if (req.body?.action === "export") {
+    try {
+      const { cafeteriaId } = await requireAuth(req, ["ADMIN"]);
+      const orders          = await findAll(cafeteriaId);
+      const csv             = buildOrdersCsv(orders);
+      res.setHeader("Content-Type",        "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="orders-export.csv"');
+      return res.status(200).send(csv);
+    } catch (error) {
+      if (error.status) return res.status(error.status).json({ ok: false, message: error.message });
+      return res.status(500).json({ ok: false, message: error.message || "No fue posible exportar los pedidos." });
+    }
   }
 
   // Detect staff requests by the presence of a Bearer token.

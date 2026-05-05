@@ -55,6 +55,23 @@ export default async function handler(req, res) {
     const action          = String(req.body?.action || "list");
     const dayKey          = getDayKey();
 
+    if (action === "analytics") {
+      const todayDow = new Date(Date.now() - 6 * 60 * 60 * 1000).getUTCDay();
+      const [prepResult, forecastResult, heatmapResult, weeklyResult] = await Promise.all([
+        supabase.from("v_daily_prep_list").select("*").eq("cafeteria_id", cafeteriaId).eq("day_key", dayKey),
+        supabase.from("v_demand_forecast").select("*").eq("cafeteria_id", cafeteriaId),
+        supabase.from("v_peak_hour_heatmap").select("*").eq("cafeteria_id", cafeteriaId).order("hour_of_day", { ascending: true }),
+        supabase.from("v_weekly_summary").select("*").eq("cafeteria_id", cafeteriaId).order("week_start", { ascending: false }).limit(8)
+      ]);
+      const forecast      = forecastResult.data || [];
+      const todayForecast = forecast.find((f) => Number(f.day_of_week) === todayDow) || null;
+      return res.status(200).json({
+        ok: true, updatedAt: new Date().toISOString(),
+        prep: prepResult.data || [], forecast, todayForecast,
+        heatmap: heatmapResult.data || [], weekly: weeklyResult.data || []
+      });
+    }
+
     if (action === "list") {
       const [orders, stats] = await Promise.all([
         findTodayForAdmin(cafeteriaId, dayKey),

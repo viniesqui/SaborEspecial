@@ -669,7 +669,7 @@
 
   async function refreshAnalytics() {
     try {
-      var payload = await api.fetchJson("/admin-analytics", { method: "POST", body: {} });
+      var payload = await api.fetchJson("/admin-orders", { method: "POST", body: { action: "analytics" } });
       if (els.insightsUpdatedAt) els.insightsUpdatedAt.textContent = fmt.dateTime(payload.updatedAt);
       renderPrepList(payload.prep);
       renderForecast(payload.todayForecast);
@@ -712,7 +712,7 @@
 
     els.accountingExportBtn.disabled = true;
     try {
-      await api.downloadFile("/accounting-export", { month }, "rentabilidad-" + month + ".csv");
+      await api.downloadFile("/accounting", { action: "export", month }, "rentabilidad-" + month + ".csv");
     } catch (err) {
       setFeedback(err.message, true);
     } finally {
@@ -819,7 +819,7 @@
     try {
       var now      = new Date();
       var fileDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
-      await api.downloadFile("/orders-export", {}, "orders-" + fileDate + ".csv");
+      await api.downloadFile("/orders", { action: "export" }, "orders-" + fileDate + ".csv");
       setFeedback("Archivo exportado correctamente.", false);
     } catch (err) {
       setFeedback(err.message, true);
