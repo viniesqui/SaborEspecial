@@ -97,7 +97,7 @@
       sinpeBtn.className = "delivery-action delivery-action--sinpe-verify";
       sinpeBtn.textContent = "Confirmar Pago SINPE";
       sinpeBtn.addEventListener("click", function () {
-        updatePaymentStatus(order.id, "PAGADO");
+        updatePaymentStatus(order.id, "CONFIRMADO");
       });
       actionsCell.appendChild(sinpeBtn);
     }

@@ -8,6 +8,9 @@ import {
   updateDelivery, updatePayment, logDeliveryEvent
 } from "../data/orders.repo.js";
 import { getDeliveryWindowConfig }                           from "../data/settings.repo.js";
+import {
+  PAID_STATUSES, CANONICAL_UNPAID, isPaid, toCanonicalPayment
+} from "../lib/payment-status.js";
 
 const VALID_DELIVERY_STATUSES = [
   "PENDIENTE_ENTREGA",
@@ -16,7 +19,10 @@ const VALID_DELIVERY_STATUSES = [
   "ENTREGADO"
 ];
 
-const PAID_STATUSES = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE", "PENDIENTE_DE_PAGO"];
+// Statuses the client may send when mutating an order's payment field:
+// any of the legacy paid values (read-side compatibility) or the
+// unpaid sentinel.  toCanonicalPayment normalises before persisting.
+const VALID_PAYMENT_STATUSES = [...PAID_STATUSES, CANONICAL_UNPAID];
 
 function formatTimestamp(value) {
   if (!value) return "";
@@ -28,12 +34,6 @@ function formatTimestamp(value) {
   }).formatToParts(new Date(value));
   const get = (t) => (parts.find((p) => p.type === t) || {}).value || "";
   return `${get("hour")}:${get("minute")} ${get("dayPeriod").replace(/\./g, "").toUpperCase()}`;
-}
-
-function normalizePayment(status) {
-  const s = String(status || "").toUpperCase();
-  if (s === "PAGADO" || s === "CONFIRMADO" || s === "CONFIRMADO_SINPE") return "PAGADO";
-  return "PENDIENTE DE PAGO";
 }
 
 async function buildSnapshot(cafeteriaId, targetDate) {
@@ -69,15 +69,16 @@ async function buildSnapshot(cafeteriaId, targetDate) {
       id:                      o.id,
       buyerName:               o.buyer_name,
       paymentMethod:           o.payment_method,
-      paymentStatus:           normalizePayment(o.payment_status),
+      // Canonical enum value — the client's fmt.paymentLabel() turns this
+      // into the Spanish display text ("Pagado" / "Pendiente de pago").
+      paymentStatus:           toCanonicalPayment(o.payment_status),
       orderStatus:             o.order_status    || "SOLICITADO",
       deliveryStatus:          o.delivery_status || "PENDIENTE_ENTREGA",
       timestampLabel:          formatTimestamp(o.created_at),
       createdAtLabel:          formatTimestamp(o.created_at),
       paymentConfirmedAtLabel: o.payment_confirmed_at ? formatTimestamp(o.payment_confirmed_at) : "",
       deliveredAtLabel:        o.delivered_at         ? formatTimestamp(o.delivered_at)          : "",
-      needsSinpeVerification:  o.payment_method === "SINPE" &&
-        !["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"].includes(String(o.payment_status || "").toUpperCase())
+      needsSinpeVerification:  o.payment_method === "SINPE" && !isPaid(o.payment_status)
     }))
   };
 }
@@ -150,18 +151,20 @@ export default async function handler(req, res) {
       }
 
       if (paymentStatus) {
-        if (!PAID_STATUSES.includes(paymentStatus)) {
+        if (!VALID_PAYMENT_STATUSES.includes(paymentStatus)) {
           return res.status(400).json({ ok: false, message: "Estado de pago inválido." });
         }
-        await updatePayment(orderId, cafeteriaId, paymentStatus, userId);
+        // Normalise legacy paid values to the canonical CONFIRMADO before
+        // persisting; the unpaid sentinel passes through unchanged.
+        const canonicalStatus = isPaid(paymentStatus) ? toCanonicalPayment(paymentStatus) : paymentStatus;
+        await updatePayment(orderId, cafeteriaId, canonicalStatus, userId);
 
-        const isConfirming = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"].includes(paymentStatus);
-        if (isConfirming && order.buyer_email) {
+        if (isPaid(canonicalStatus) && order.buyer_email) {
           emailStatus = await sendOrderStatusEmail({
             to:         order.buyer_email,
             buyerName:  order.buyer_name,
             orderId:    order.id,
-            status:     paymentStatus,
+            status:     canonicalStatus,
             trackingUrl
           });
         }

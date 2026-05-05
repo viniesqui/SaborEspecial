@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase.js";
+import { isPaid }   from "../lib/payment-status.js";
 
-const PAID_STATUSES = ["PAGADO", "CONFIRMADO", "CONFIRMADO_SINPE"];
 const ACTIVE_FILTER = "record_status";
 const ACTIVE_VALUE  = "CANCELADO";
 
@@ -124,7 +124,7 @@ export async function updateDelivery(orderId, cafeteriaId, deliveryStatus) {
 
 // Updates payment status. Only ADMIN may call this (enforced at the API layer).
 export async function updatePayment(orderId, cafeteriaId, paymentStatus, verifiedByUserId = null) {
-  const isConfirming = PAID_STATUSES.includes(paymentStatus);
+  const isConfirming = isPaid(paymentStatus);
   const update = {
     payment_status:       paymentStatus,
     payment_confirmed_at: isConfirming ? new Date().toISOString() : null
