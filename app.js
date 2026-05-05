@@ -241,16 +241,24 @@
       }
     } else {
       // Fallback: single-day mode (no weekMenus in response)
-      var menu = snapshot.menu || {};
-      els.menuTitle.textContent       = menu.title       || "Menú no configurado";
-      els.menuDescription.textContent = menu.description || "No hay descripción disponible.";
-      els.menuPrice.textContent       = fmt.currency(menu.price);
+      var menu = snapshot.menu;  // may be null when no menu is configured
+      if (menu) {
+        els.menuTitle.textContent       = menu.title;
+        els.menuDescription.textContent = menu.description || "No hay descripción disponible.";
+        els.menuPrice.textContent       = fmt.currency(menu.price);
+      } else {
+        els.menuTitle.textContent       = "No hay menú para hoy";
+        els.menuDescription.textContent = "Aún no se ha publicado el menú del día. Vuelve más tarde.";
+        els.menuPrice.textContent       = "-";
+      }
       els.availableCount.textContent  = String(snapshot.availableMeals || 0);
       renderBuyers(snapshot.orders || []);
 
-      var canBuy = Boolean(snapshot.isSalesOpen) && Number(snapshot.availableMeals || 0) > 0;
+      var hasMenu = Boolean(menu);
+      var canBuy  = hasMenu && Boolean(snapshot.isSalesOpen) && Number(snapshot.availableMeals || 0) > 0;
       els.submitButton.disabled = !canBuy || state.isSubmitting;
-      if (!canBuy) setFeedback("La venta está cerrada o ya se alcanzó el máximo diario.", false);
+      if (!hasMenu)       setFeedback("No hay menú disponible para hoy. No se pueden registrar pedidos.", false);
+      else if (!canBuy)   setFeedback("La venta está cerrada o ya se alcanzó el máximo diario.", false);
       else if (!state.isSubmitting) setFeedback("", false);
     }
   }

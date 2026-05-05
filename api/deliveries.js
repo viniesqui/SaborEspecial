@@ -56,11 +56,15 @@ async function buildSnapshot(cafeteriaId, targetDate) {
     paidPendingDeliveryCount: stats.paidPendingDelivery,
     salesWindow:              `${s.sales_start || "10:00"} - ${s.sales_end || "12:00"}`,
     deliveryWindow:           s.delivery_window || "12:00 - 12:30",
-    menu: {
-      title:       menu?.title       || "Menu no configurado",
-      description: menu?.description || "",
-      price:       Number(menu?.price || 1000)
-    },
+    // No fallback menu: returning null forces the UI to show an empty-state
+    // panel instead of allowing a sale against a placeholder priced at ₡1000.
+    menu: menu
+      ? {
+          title:       menu.title,
+          description: menu.description || "",
+          price:       Number(menu.price)
+        }
+      : null,
     orders: orders.map((o) => ({
       id:                      o.id,
       buyerName:               o.buyer_name,

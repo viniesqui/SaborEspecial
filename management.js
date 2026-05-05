@@ -235,16 +235,26 @@
   // ── ADMIN rendering ───────────────────────────────────────────────
 
   function renderDashboard(snapshot) {
-    var menu = snapshot.menu || {};
+    var menu    = snapshot.menu;  // may be null when no menu is configured
+    var hasMenu = Boolean(menu);
     if (els.updatedAt)          els.updatedAt.textContent         = fmt.dateTime(snapshot.updatedAt);
-    if (els.currentMenuTitle)   els.currentMenuTitle.textContent  = menu.title       || "Menú no configurado";
-    if (els.currentMenuDesc)    els.currentMenuDesc.textContent   = menu.description || "No hay descripción disponible.";
-    if (els.currentMenuPrice)   els.currentMenuPrice.textContent  = fmt.currency(menu.price);
+    if (els.currentMenuTitle)   els.currentMenuTitle.textContent  = hasMenu ? menu.title : "No hay menú para hoy";
+    if (els.currentMenuDesc)    els.currentMenuDesc.textContent   = hasMenu
+      ? (menu.description || "No hay descripción disponible.")
+      : "Publica el menú del día desde la pestaña de menú para habilitar las ventas.";
+    if (els.currentMenuPrice)   els.currentMenuPrice.textContent  = hasMenu ? fmt.currency(menu.price) : "-";
     if (els.availableMeals)     els.availableMeals.textContent    = String(snapshot.availableMeals || 0);
     if (els.salesWindow)        els.salesWindow.textContent       = snapshot.salesWindow    || "-";
     if (els.deliveryWindow)     els.deliveryWindow.textContent    = snapshot.deliveryWindow || "-";
     if (els.digitalCount)       els.digitalCount.textContent      = String(snapshot.digitalCount || 0);
     if (els.walkInCount)        els.walkInCount.textContent       = String(snapshot.walkInCount  || 0);
+
+    // Walk-in POS sales require a menu — disable the button when it's missing
+    // so the staff doesn't get a confusing "No hay menú" error mid-checkout.
+    if (els.manualSaleButton) {
+      els.manualSaleButton.disabled = !hasMenu;
+      els.manualSaleButton.title    = hasMenu ? "" : "Publica el menú del día para habilitar ventas manuales.";
+    }
   }
 
   function renderAdminOrders(snapshot) {
