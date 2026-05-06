@@ -30,6 +30,12 @@
     els.submit.disabled = true;
     setFeedback("Verificando acceso...", false);
 
+    if (!window.supabaseClient) {
+      setFeedback("Error de configuración: no se pudo conectar con el servidor. Contacte al administrador.", true);
+      els.submit.disabled = false;
+      return;
+    }
+
     try {
       // 1. Authenticate — returns a session with access_token.
       var authResult = await window.supabaseClient.auth.signInWithPassword({ email: email, password: password });
