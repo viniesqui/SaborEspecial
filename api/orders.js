@@ -1,6 +1,7 @@
 import { randomUUID }                                           from "crypto";
 import { handleOptions, setCors }                               from "../lib/http.js";
 import { getDayKey, isCutoffPassedForDate, buildDashboardSnapshot } from "../lib/dashboard.js";
+import { validateOrder, validateTargetDate }                    from "../lib/validators.js";
 import { findBySlug }                                           from "../data/cafeterias.repo.js";
 import { findActive as findActiveMenu }                         from "../data/menus.repo.js";
 import { createAtomic, findToday, getStats, findAll }           from "../data/orders.repo.js";
@@ -27,58 +28,6 @@ function buildOrdersCsv(rows) {
   return "﻿" + lines.join("\n");
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-function validateOrder(order) {
-  const name   = String(order.buyerName   || "").trim();
-  const method = String(order.paymentMethod || "").toUpperCase();
-  const email  = String(order.buyerEmail  || "").trim().toLowerCase();
-
-  if (!name) {
-    throw new Error("El nombre del comprador es obligatorio.");
-  }
-  if (name.length < 2) {
-    throw new Error("El nombre debe tener al menos 2 caracteres.");
-  }
-  if (name.length > 100) {
-    throw new Error("El nombre no puede exceder 100 caracteres.");
-  }
-  if (!method) {
-    throw new Error("El método de pago es obligatorio.");
-  }
-  if (!["SINPE", "EFECTIVO", "CREDITO"].includes(method)) {
-    throw new Error("Método de pago inválido.");
-  }
-  // Email: required for all digital orders; format-validated when present.
-  if (!email) {
-    throw new Error("El correo electrónico es obligatorio.");
-  }
-  if (!EMAIL_RE.test(email)) {
-    throw new Error("El formato del correo electrónico es inválido.");
-  }
-}
-
-function validateTargetDate(targetDate, todayKey) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-    throw new Error("Fecha de pedido inválida.");
-  }
-  // Reject any date in the past (strict: must be >= today in CR timezone).
-  if (targetDate < todayKey) {
-    throw new Error("No se pueden registrar pedidos para fechas pasadas.");
-  }
-  // Cap at 7 days ahead to prevent arbitrarily far future bookings.
-  // Uses the same CR-offset clock as getDayKey() so the window is consistent.
-  const maxDate = new Date(Date.now() - 6 * 60 * 60 * 1000 + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-  if (targetDate > maxDate) {
-    throw new Error("Solo se pueden registrar pedidos con hasta 7 días de anticipación.");
-  }
-  // Guard against a client sending a date that parses as NaN.
-  if (isNaN(Date.parse(targetDate))) {
-    throw new Error("Fecha de pedido inválida.");
-  }
-}
 
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
