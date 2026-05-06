@@ -50,6 +50,23 @@
     adminPending:      document.getElementById("mgmtAdminPending"),
     adminOrdersList:   document.getElementById("mgmtAdminOrdersList"),
     adminRowTemplate:  document.getElementById("adminOrderRowTemplate"),
+    // Admin delivery-status overview
+    adminDeliveriesList:    document.getElementById("mgmtAdminDeliveriesList"),
+    adminDeliveryRowTpl:    document.getElementById("adminDeliveryRowTemplate"),
+    adminPendingDeliveries: document.getElementById("mgmtAdminPendingDeliveries"),
+    adminDeliveredOrders:   document.getElementById("mgmtAdminDeliveredOrders"),
+    // Settings
+    settingsCard:      document.getElementById("mgmtSettingsCard"),
+    settingsForm:      document.getElementById("mgmtSettingsForm"),
+    settingsFeedback:  document.getElementById("mgmtSettingsFeedback"),
+    settingsUpdatedAt: document.getElementById("mgmtSettingsUpdatedAt"),
+    setMaxMeals:       document.getElementById("setMaxMeals"),
+    setSalesStart:     document.getElementById("setSalesStart"),
+    setSalesEnd:       document.getElementById("setSalesEnd"),
+    setCutoffTime:     document.getElementById("setCutoffTime"),
+    setDeliveryWindow: document.getElementById("setDeliveryWindow"),
+    setMessage:        document.getElementById("setMessage"),
+    setDisableWindow:  document.getElementById("setDisableWindow"),
     // Helper stats
     totalOrders:       document.getElementById("mgmtTotalOrders"),
     pendingPayment:    document.getElementById("mgmtPendingPayment"),
@@ -120,21 +137,33 @@
 
   // ── Tab switching (ADMIN only) ────────────────────────────────────
 
+  var TAB_IDS = ["mgmtOperationsTab", "mgmtInsightsTab", "mgmtAccountingTab"];
+
+  function showTab(targetId) {
+    TAB_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = (el.id !== targetId);
+    });
+    if (els.tabs) {
+      els.tabs.querySelectorAll(".admin-tab").forEach(function (t) {
+        t.classList.toggle("is-active", t.dataset.tab === targetId);
+      });
+    }
+    if (targetId === "mgmtInsightsTab")   refreshAnalytics();
+    if (targetId === "mgmtAccountingTab") refreshAccounting();
+  }
+
   function initTabs() {
     if (!els.tabs) return;
     els.tabs.addEventListener("click", function (e) {
       var btn = e.target.closest(".admin-tab");
       if (!btn) return;
-      els.tabs.querySelectorAll(".admin-tab").forEach(function (t) { t.classList.remove("is-active"); });
-      btn.classList.add("is-active");
-      var targetId = btn.dataset.tab;
-      ["mgmtOperationsTab", "mgmtInsightsTab", "mgmtAccountingTab"].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.hidden = (el.id !== targetId);
-      });
-      if (targetId === "mgmtInsightsTab")   refreshAnalytics();
-      if (targetId === "mgmtAccountingTab") refreshAccounting();
+      showTab(btn.dataset.tab);
     });
+    // adaptToRole flipped every .admin-only element to hidden=false, including
+    // the two non-active tab panels. Re-assert the active tab so only one shows.
+    var active = els.tabs.querySelector(".admin-tab.is-active");
+    showTab(active ? active.dataset.tab : "mgmtOperationsTab");
   }
 
   // ── Feedback helpers ──────────────────────────────────────────────
@@ -304,6 +333,122 @@
       fragment.appendChild(node);
     });
     els.adminOrdersList.appendChild(fragment);
+  }
+
+  // ── ADMIN delivery-status overview (read-only) ───────────────────
+  var DELIVERY_LABEL = {
+    PENDIENTE_ENTREGA:   { text: "PENDIENTE",     mod: "pending"  },
+    EN_PREPARACION:      { text: "EN PREPARACIÓN", mod: "prep"     },
+    LISTO_PARA_ENTREGA:  { text: "LISTO",         mod: "ready"    },
+    ENTREGADO:           { text: "ENTREGADO",     mod: "done"     }
+  };
+
+  function renderAdminDeliveries(snapshot) {
+    if (els.adminPendingDeliveries) els.adminPendingDeliveries.textContent = String(snapshot.pendingDeliveries || 0);
+    if (els.adminDeliveredOrders)   els.adminDeliveredOrders.textContent   = String(snapshot.deliveredOrders   || 0);
+
+    if (!els.adminDeliveriesList || !els.adminDeliveryRowTpl) return;
+    els.adminDeliveriesList.innerHTML = "";
+
+    var orders = snapshot.orders || [];
+    if (!orders.length) {
+      els.adminDeliveriesList.innerHTML = '<div class="delivery-table__empty">No hay pedidos registrados hoy.</div>';
+      return;
+    }
+
+    var fragment = document.createDocumentFragment();
+    orders.forEach(function (order) {
+      var node  = els.adminDeliveryRowTpl.content.cloneNode(true);
+      var label = DELIVERY_LABEL[order.deliveryStatus] || DELIVERY_LABEL.PENDIENTE_ENTREGA;
+      var paid  = fmt.paymentLabel(order.paymentStatus) === "PAGADO";
+
+      node.querySelector(".buyer-name").textContent = order.buyerName;
+      node.querySelector(".admin-delivery-meta").textContent =
+        [order.paymentMethod, order.paymentReference].filter(Boolean).join(" · ") || "—";
+      node.querySelector(".admin-delivery-created-at").textContent = order.createdAtLabel || "-";
+
+      var pay = node.querySelector(".admin-delivery-payment");
+      pay.textContent = paid ? "PAGADO" : "PENDIENTE";
+      pay.className   = "delivery-payment-status admin-delivery-payment " +
+        (paid ? "delivery-payment-status--paid" : "delivery-payment-status--pending");
+
+      var st = node.querySelector(".admin-delivery-status");
+      st.textContent = label.text;
+      st.className   = "delivery-action admin-delivery-status admin-delivery-status--" + label.mod;
+
+      node.querySelector(".admin-delivery-delivered-at").textContent = order.deliveredAtLabel || "";
+      fragment.appendChild(node);
+    });
+    els.adminDeliveriesList.appendChild(fragment);
+  }
+
+  // ── ADMIN settings card ──────────────────────────────────────────
+  function timeToInputValue(t) {
+    if (!t) return "";
+    return String(t).slice(0, 5);
+  }
+
+  function fillSettingsForm(s) {
+    if (!s) return;
+    if (els.setMaxMeals)       els.setMaxMeals.value       = s.max_meals || 15;
+    if (els.setSalesStart)     els.setSalesStart.value     = timeToInputValue(s.sales_start);
+    if (els.setSalesEnd)       els.setSalesEnd.value       = timeToInputValue(s.sales_end);
+    if (els.setCutoffTime)     els.setCutoffTime.value     = timeToInputValue(s.cutoff_time || "09:00");
+    if (els.setDeliveryWindow) els.setDeliveryWindow.value = s.delivery_window || "";
+    if (els.setMessage)        els.setMessage.value        = s.message || "";
+    if (els.setDisableWindow)  els.setDisableWindow.checked = !!s.disable_sales_window;
+    if (els.settingsUpdatedAt) els.settingsUpdatedAt.textContent =
+      s.updated_at ? "Actualizado " + fmt.dateTime(s.updated_at) : "";
+  }
+
+  async function loadSettings() {
+    if (!els.settingsForm) return;
+    try {
+      var resp = await api.fetchJson("/admin-orders", {
+        method: "POST", body: { action: "getSettings" }
+      });
+      fillSettingsForm(resp.settings || {});
+    } catch (err) {
+      if (els.settingsFeedback) {
+        els.settingsFeedback.textContent = "No se pudo cargar la configuración: " + (err.message || "");
+        els.settingsFeedback.style.color = "#842f3d";
+      }
+    }
+  }
+
+  async function submitSettings(e) {
+    e.preventDefault();
+    if (!els.settingsForm) return;
+    if (els.settingsFeedback) {
+      els.settingsFeedback.textContent = "Guardando…";
+      els.settingsFeedback.style.color = "#705d52";
+    }
+    var settings = {
+      max_meals:            Number(els.setMaxMeals.value),
+      sales_start:          els.setSalesStart.value,
+      sales_end:            els.setSalesEnd.value,
+      cutoff_time:          els.setCutoffTime.value,
+      delivery_window:      els.setDeliveryWindow.value,
+      message:              els.setMessage.value,
+      disable_sales_window: !!els.setDisableWindow.checked
+    };
+    try {
+      var resp = await api.fetchJson("/admin-orders", {
+        method: "POST", body: { action: "updateSettings", settings: settings }
+      });
+      fillSettingsForm(resp.settings || settings);
+      if (els.settingsFeedback) {
+        els.settingsFeedback.textContent = "Configuración actualizada.";
+        els.settingsFeedback.style.color = "#2f7a3a";
+      }
+      // Refresh dependent panels (availability / windows shown on operations card).
+      loadAll();
+    } catch (err) {
+      if (els.settingsFeedback) {
+        els.settingsFeedback.textContent = err.message || "No se pudo guardar la configuración.";
+        els.settingsFeedback.style.color = "#842f3d";
+      }
+    }
   }
 
   // ── HELPER rendering ──────────────────────────────────────────────
@@ -651,6 +796,7 @@
     try {
       var snapshot = await api.fetchJson("/admin-orders", { method: "POST", body: { action: "list" } });
       renderAdminOrders(snapshot);
+      renderAdminDeliveries(snapshot);
     } catch (err) {
       setFeedback(err.message, true);
     }
@@ -986,6 +1132,11 @@
     }
     if (els.accountingExportBtn) els.accountingExportBtn.addEventListener("click", exportAccounting);
 
+    if (userRole === "ADMIN" && els.settingsForm) {
+      els.settingsForm.addEventListener("submit", submitSettings);
+      loadSettings();
+    }
+
     initManualSaleModal();
     if (els.logoutButton) els.logoutButton.addEventListener("click", function () {
       window.supabaseClient.auth.signOut();
@@ -1001,6 +1152,12 @@
         var insightsTab = document.getElementById("mgmtInsightsTab");
         if (insightsTab && !insightsTab.hidden) refreshAnalytics();
       }, 5 * 60 * 1000);
+    } else {
+      // Helper has no tabs — make sure the operations panel is the only one visible.
+      ["mgmtInsightsTab", "mgmtAccountingTab"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = true;
+      });
     }
   }
 

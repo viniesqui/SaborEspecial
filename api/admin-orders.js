@@ -5,7 +5,42 @@ import { sendOrderStatusEmail }                       from "../lib/email.js";
 import { supabase }                                   from "../lib/supabase.js";
 import { findTodayForAdmin, updatePayment, getStats } from "../data/orders.repo.js";
 import { addCredits }                                 from "../data/credits.repo.js";
+import { getSettings, updateSettings }                from "../data/settings.repo.js";
 import { CANONICAL_PAID, toCanonicalPayment }         from "../lib/payment-status.js";
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+function validateSettingsPatch(patch) {
+  const out = {};
+  if (patch.max_meals !== undefined) {
+    const n = Number(patch.max_meals);
+    if (!Number.isInteger(n) || n <= 0 || n > 1000) {
+      throw { status: 400, message: "max_meals debe ser un entero entre 1 y 1000." };
+    }
+    out.max_meals = n;
+  }
+  ["sales_start", "sales_end", "cutoff_time"].forEach((k) => {
+    if (patch[k] !== undefined) {
+      const v = String(patch[k]);
+      if (!TIME_RE.test(v)) throw { status: 400, message: `${k} debe ser HH:MM.` };
+      out[k] = v.length === 5 ? `${v}:00` : v;
+    }
+  });
+  if (patch.delivery_window !== undefined) {
+    const v = String(patch.delivery_window).trim();
+    if (!v || v.length > 60) throw { status: 400, message: "delivery_window inválido." };
+    out.delivery_window = v;
+  }
+  if (patch.message !== undefined) {
+    const v = String(patch.message);
+    if (v.length > 240) throw { status: 400, message: "message excede 240 caracteres." };
+    out.message = v;
+  }
+  if (patch.disable_sales_window !== undefined) {
+    out.disable_sales_window = !!patch.disable_sales_window;
+  }
+  return out;
+}
 
 function formatDateTime(value) {
   if (!value) return "";
@@ -25,6 +60,8 @@ function buildSnapshot(orders, stats) {
     pendingPaymentCount: stats.pendingPayment,
     digitalCount:        stats.digitalCount || 0,
     walkInCount:         stats.walkInCount  || 0,
+    deliveredOrders:     stats.deliveredOrders   || 0,
+    pendingDeliveries:   stats.pendingDeliveries || 0,
     orders: orders.map((o) => ({
       id:                      o.id,
       buyerName:               o.buyer_name        || "Sin nombre",
@@ -36,6 +73,8 @@ function buildSnapshot(orders, stats) {
       orderChannel:            o.order_channel      || "DIGITAL",
       saleType:                o.sale_type          || "SINGLE_SALE",
       packageId:               o.package_id         || null,
+      deliveryStatus:          o.delivery_status    || "PENDIENTE_ENTREGA",
+      deliveredAtLabel:        o.delivered_at ? formatDateTime(o.delivered_at) : "",
       createdAtLabel:          formatDateTime(o.created_at),
       paymentConfirmedAtLabel: formatDateTime(o.payment_confirmed_at)
     }))
@@ -70,6 +109,20 @@ export default async function handler(req, res) {
         prep: prepResult.data || [], forecast, todayForecast,
         heatmap: heatmapResult.data || [], weekly: weeklyResult.data || []
       });
+    }
+
+    if (action === "getSettings") {
+      const settings = await getSettings(cafeteriaId);
+      return res.status(200).json({ ok: true, settings });
+    }
+
+    if (action === "updateSettings") {
+      const patch    = validateSettingsPatch(req.body?.settings || {});
+      if (Object.keys(patch).length === 0) {
+        return res.status(400).json({ ok: false, message: "No hay campos válidos para actualizar." });
+      }
+      const settings = await updateSettings(cafeteriaId, patch);
+      return res.status(200).json({ ok: true, settings });
     }
 
     if (action === "list") {
