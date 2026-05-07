@@ -2969,3 +2969,482 @@ textarea {
   font-weight: 700;
 }
 .packages-disclosure__intro { margin: 0.8rem 0 1rem; }
+
+
+/* ─────────────────────────────────────────────────────────────────
+   Customer-buy page (/s/<slug>)
+   Colorful, structured, mobile-first. Scoped to body.customer-app
+   so it never bleeds into management or delivery pages.
+   ───────────────────────────────────────────────────────────────── */
+
+body.customer-app {
+  background:
+    radial-gradient(900px 500px at -10% -20%, #ffd0d8 0%, transparent 55%),
+    radial-gradient(800px 600px at 110% 10%, #d8d0ff 0%, transparent 55%),
+    radial-gradient(700px 500px at 50% 110%, #ffe6c2 0%, transparent 60%),
+    #fbf6f1;
+}
+
+body.customer-app .site-header {
+  padding-top: 1.25rem;
+  padding-bottom: 0.25rem;
+}
+
+body.customer-app .customer-layout {
+  gap: 1rem;
+  padding: 1rem 0 4rem;
+}
+
+/* Section "chip" eyebrow above each card so the page reads like a flow */
+body.customer-app .card .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(200, 58, 90, 0.10);
+  color: var(--primary-dark);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.85rem;
+}
+
+/* ── 1. Day picker card ─────────────────────────────────────────── */
+body.customer-app .card--week-nav {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border);
+}
+
+body.customer-app .week-tabs {
+  gap: 0.55rem;
+  padding-bottom: 0.4rem;
+  margin: 0 -0.25rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+body.customer-app .week-tab {
+  min-width: 84px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+body.customer-app .week-tab__day {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+body.customer-app .week-tab__day em {
+  display: inline-block;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+body.customer-app .week-tab__status {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+body.customer-app .week-tab.is-active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #c83a5a 0%, #6b4ce0 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(200, 58, 90, 0.32);
+  transform: translateY(-1px);
+}
+
+body.customer-app .week-tab.is-active .week-tab__day,
+body.customer-app .week-tab.is-active .week-tab__status {
+  color: #fff;
+}
+
+body.customer-app .week-tab.is-active .week-tab__day em {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+/* ── 2. Menu hero card — page centerpiece ───────────────────────── */
+body.customer-app .customer-menu-hero {
+  background: linear-gradient(135deg, #c83a5a 0%, #9b2a45 50%, #6b4ce0 130%);
+  color: #fff;
+  border: 0;
+  padding: 1.75rem 1.5rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 50px -20px rgba(155, 42, 69, 0.55);
+}
+
+body.customer-app .customer-menu-hero::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(closest-side, rgba(255,255,255,0.22), transparent 70%);
+  pointer-events: none;
+}
+
+body.customer-app .customer-menu-hero::after {
+  content: "";
+  position: absolute;
+  bottom: -100px;
+  left: -80px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(closest-side, rgba(232, 184, 138, 0.32), transparent 70%);
+  pointer-events: none;
+}
+
+body.customer-app .customer-menu-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.customer-app .customer-menu-hero .eyebrow {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+
+body.customer-app .customer-menu-hero__title {
+  color: #fff;
+  font-size: clamp(1.7rem, 5vw, 2.3rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+body.customer-app .customer-menu-hero__desc {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+body.customer-app .customer-menu-hero__price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+
+body.customer-app .customer-menu-hero__price .detail-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+body.customer-app .customer-menu-hero__price strong {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.customer-app .customer-availability-pill {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--success);
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.85rem;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+body.customer-app .customer-menu-hero__notice {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(8px);
+}
+
+/* ── 3. Order form card ─────────────────────────────────────────── */
+body.customer-app .customer-order-card {
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+body.customer-app .customer-order-card .section-title h2 {
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+}
+
+body.customer-app .payment-methods {
+  gap: 0.6rem;
+}
+
+body.customer-app .payment-option {
+  padding: 1rem 0.85rem;
+  font-size: 0.95rem;
+  border-radius: 14px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-soft);
+}
+
+body.customer-app .payment-option.is-selected {
+  background: linear-gradient(135deg, #c83a5a 0%, #6b4ce0 100%);
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(200, 58, 90, 0.32);
+}
+
+body.customer-app .payment-fieldset legend {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+body.customer-app .credit-balance-badge {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--success-soft);
+  color: var(--success);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+body.customer-app .customer-submit {
+  background: linear-gradient(135deg, #c83a5a 0%, #6b4ce0 100%);
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 1.05rem 1.4rem;
+  box-shadow: 0 14px 30px rgba(200, 58, 90, 0.38);
+}
+
+body.customer-app .customer-submit:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 18px 36px rgba(200, 58, 90, 0.45);
+}
+
+/* ── 4. "Pedidos del día" — convert spreadsheet to chip list ────── */
+body.customer-app .customer-tracking-card {
+  background: #fff;
+}
+
+body.customer-app .customer-delivery-table__head {
+  display: none;
+}
+
+body.customer-app .customer-delivery-table__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name      delivery"
+    "meta      meta"
+    "status    status";
+  gap: 0.45rem 0.75rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.55rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+body.customer-app .customer-delivery-table__row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+body.customer-app .customer-delivery-table__row .delivery-table__cell {
+  display: contents;
+}
+
+body.customer-app .customer-delivery-table__row .delivery-table__cell--start {
+  display: contents;
+}
+
+body.customer-app .buyer-name {
+  grid-area: name;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+body.customer-app .buyer-meta {
+  grid-area: meta;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+body.customer-app .customer-order-status,
+body.customer-app .customer-payment-status,
+body.customer-app .customer-created-at,
+body.customer-app .customer-payment-confirmed-at,
+body.customer-app .customer-delivered-at {
+  display: none;
+}
+
+body.customer-app .customer-delivery-badge {
+  grid-area: delivery;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 0;
+  width: auto;
+  min-height: 0;
+  text-align: center;
+}
+
+body.customer-app .customer-delivery-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+body.customer-app .customer-delivery-badge.is-selected {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+body.customer-app .delivery-table__empty {
+  background: var(--surface-soft);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* ── 5. Tracking link card — success surface ────────────────────── */
+body.customer-app .tracking-link-card {
+  background: linear-gradient(135deg, #d8f2e6 0%, #ffffff 60%);
+  border: 1px solid rgba(31, 138, 91, 0.22);
+}
+
+body.customer-app .tracking-link-card .eyebrow {
+  background: rgba(31, 138, 91, 0.14);
+  color: var(--success);
+}
+
+body.customer-app .tracking-link-card__title {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+
+/* ── 6. Packages disclosure — colorful, modern ──────────────────── */
+body.customer-app .card--packages {
+  background: linear-gradient(135deg, #fff7e8 0%, #ffffff 60%);
+  border: 1px solid rgba(176, 107, 20, 0.18);
+}
+
+body.customer-app .packages-disclosure summary {
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+  margin: -0.4rem -0.5rem;
+}
+
+body.customer-app .packages-disclosure summary:hover {
+  background: rgba(176, 107, 20, 0.06);
+}
+
+body.customer-app .packages-disclosure summary::after {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+body.customer-app .card--packages .eyebrow {
+  background: rgba(176, 107, 20, 0.14);
+  color: var(--warning);
+}
+
+body.customer-app .packages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+body.customer-app .package-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 160ms ease;
+  font-family: inherit;
+}
+
+body.customer-app .package-card:hover {
+  border-color: var(--warning);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+body.customer-app .package-card.is-selected {
+  background: linear-gradient(135deg, var(--warning) 0%, #d4951f 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(176, 107, 20, 0.36);
+}
+
+body.customer-app .package-card__title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+body.customer-app .package-card__count {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+body.customer-app .package-card.is-selected .package-card__count {
+  color: rgba(255,255,255,0.85);
+}
+
+body.customer-app .package-card__price {
+  font-weight: 800;
+  font-size: 1.1rem;
+  margin-top: 0.2rem;
+}
+
+/* ── 7. Mobile polish ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body.customer-app .customer-menu-hero {
+    padding: 1.5rem 1.25rem 1.25rem;
+  }
+  body.customer-app .customer-menu-hero__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  body.customer-app .week-tab {
+    min-width: 76px;
+    padding: 0.65rem 0.75rem;
+  }
+}
