@@ -319,6 +319,13 @@
     }
   }
 
+  function newRequestId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    return "req-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
   async function submitOrder(event) {
     event.preventDefault();
     if (state.isSubmitting) return;
@@ -328,7 +335,8 @@
       buyerName:     String(fd.get("buyerName")    || "").trim(),
       buyerEmail:    String(fd.get("buyerEmail")   || "").trim().toLowerCase(),
       paymentMethod: String(fd.get("paymentMethod") || "").trim(),
-      targetDate:    state.selectedDate || todayKey()
+      targetDate:    state.selectedDate || todayKey(),
+      requestId:     newRequestId()
     };
 
     if (!payload.buyerName || !payload.paymentMethod) {
@@ -361,8 +369,7 @@
 
       if (result.trackingToken) {
         var trackingUrl = window.location.origin +
-          window.location.pathname.replace(/[^/]*$/, "") +
-          "track.html?token=" + encodeURIComponent(result.trackingToken);
+          "/track.html?token=" + encodeURIComponent(result.trackingToken);
         showTrackingLink(trackingUrl);
       }
 
@@ -421,7 +428,13 @@
     creditCheckTimer = setTimeout(function () {
       api.fetchJson("/credits?slug=" + encodeURIComponent(slug) + "&email=" + encodeURIComponent(email))
         .then(function (d) { updateCreditUI(d.remainingMeals || 0); })
-        .catch(function ()  { updateCreditUI(0); });
+        .catch(function (err) {
+          updateCreditUI(0);
+          if (els.creditBalanceBadge) {
+            els.creditBalanceBadge.hidden = false;
+            els.creditBalanceBadge.textContent = "No se pudo verificar el saldo de créditos.";
+          }
+        });
     }, 600);
   }
 
@@ -545,8 +558,7 @@
 
       if (els.pkgTrackingSection && els.pkgTrackingLink) {
         var trackingUrl = window.location.origin +
-          window.location.pathname.replace(/[^/]*$/, "") +
-          "track.html?token=" + encodeURIComponent(result.trackingToken);
+          "/track.html?token=" + encodeURIComponent(result.trackingToken);
         els.pkgTrackingLink.href        = trackingUrl;
         els.pkgTrackingLink.textContent = trackingUrl;
         if (els.pkgTrackingMessage) els.pkgTrackingMessage.textContent = result.message || "";
@@ -565,6 +577,35 @@
       state.isPkgSubmitting        = false;
       els.pkgSubmitButton.disabled = false;
     }
+  }
+
+  // ── Realtime subscription ─────────────────────────────────────────
+  // Subscribes to INSERT/UPDATE on orders so the customer view reflects
+  // backend state immediately, instead of waiting for the 30 s poll.
+
+  function subscribeRealtime() {
+    var url = config.supabaseUrl     || "";
+    var key = config.supabaseAnonKey || "";
+    if (!window.supabase || !url || url.includes("REPLACE_WITH") || !key || key.includes("REPLACE_WITH")) {
+      return null;
+    }
+
+    var client = window.supabase.createClient(url, key, {
+      realtime: { timeout: 60000 }
+    });
+
+    var debounce = null;
+    function scheduleRefresh() {
+      clearTimeout(debounce);
+      debounce = setTimeout(function () { refreshSnapshot(false); }, 400);
+    }
+
+    return client
+      .channel("customer-orders-" + slug)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        scheduleRefresh)
+      .subscribe();
   }
 
   // ── Init ──────────────────────────────────────────────────────────
@@ -592,7 +633,7 @@
     if (els.logoutButton) {
       els.logoutButton.addEventListener("click", function () {
         sessionStorage.removeItem("ceep-role-session");
-        window.location.replace("./index.html");
+        window.location.replace("/index.html");
       });
     }
 
@@ -607,11 +648,13 @@
     banner.init();
     refreshSnapshot(false);
     fetchAndRenderPackages();
+    subscribeRealtime();
 
+    // Polling kept as a safety net for environments without Realtime.
     window.setInterval(function () { refreshSnapshot(false); }, Number(config.refreshIntervalMs || 30000));
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
     }
   }
 

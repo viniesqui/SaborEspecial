@@ -1,23 +1,21 @@
-const CACHE_NAME     = "ceep-lunch-static-v11";
+const CACHE_NAME     = "ceep-lunch-static-v13";
 const API_CACHE_NAME = "ceep-api-v1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
-  "./customer.html",
   "./customer-app.html",
   "./track.html",
-  "./admin.html",
-  "./helper.html",
+  "./management.html",
   "./deliveries.html",
   "./styles.css",
   "./login.js",
   "./app.js",
   "./track.js",
-  "./admin.js",
-  "./helper.js",
+  "./management.js",
   "./deliveries.js",
   "./config.js",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./favicon.svg"
 ];
 
 self.addEventListener("install", (event) => {
