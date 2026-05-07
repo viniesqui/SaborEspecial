@@ -6,7 +6,7 @@ import {
 import { requireAuth }                                                   from "../lib/auth.js";
 import { findBySlug }                                                    from "../data/cafeterias.repo.js";
 import { findActive as findActiveMenu, findWeek }                        from "../data/menus.repo.js";
-import { findToday, getStats }                                           from "../data/orders.repo.js";
+import { findToday, getStats, getWeekStats }                            from "../data/orders.repo.js";
 import { getSettings }                                                   from "../data/settings.repo.js";
 
 const DAY_NAMES_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -54,20 +54,26 @@ export default async function handler(req, res) {
 
     // ?week=true — adds weekly menu data for the customer's day-selector UI.
     if (req.query?.week === "true") {
-      const dayKeys      = getUpcomingDayKeys(7);
-      const weekMenuRows = await findWeek(cafeteriaId, dayKeys[0], dayKeys[dayKeys.length - 1]);
+      const dayKeys = getUpcomingDayKeys(7);
+      const fromKey = dayKeys[0];
+      const toKey   = dayKeys[dayKeys.length - 1];
 
-      // Fetch per-day sold counts in parallel to compute per-day availability.
-      const weekStats = await Promise.all(dayKeys.map((d) => getStats(cafeteriaId, d)));
+      // Fetch the weekly menu rows and the per-day sold counts in parallel.
+      // getWeekStats issues ONE aggregate query for the whole range,
+      // replacing the previous N-RPC waterfall (one get_day_stats per day).
+      const [weekMenuRows, soldByDate] = await Promise.all([
+        findWeek(cafeteriaId, fromKey, toKey),
+        getWeekStats(cafeteriaId, fromKey, toKey)
+      ]);
 
       const menuByDay = {};
       weekMenuRows.forEach((m) => { menuByDay[m.day_key] = m; });
 
       const maxMeals = Number(settings.max_meals || 15);
 
-      snapshot.weekMenus = dayKeys.map((date, i) => {
+      snapshot.weekMenus = dayKeys.map((date) => {
         const dayMenu = menuByDay[date] || null;
-        const sold    = weekStats[i].totalOrders;
+        const sold    = soldByDate[date] || 0;
         const avail   = Math.max(maxMeals - sold, 0);
         // Parse date at noon UTC so getUTCDay() is day-stable in all TZs.
         const d       = new Date(date + "T12:00:00Z");

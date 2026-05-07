@@ -28,6 +28,24 @@ export async function getStats(cafeteriaId, targetDate) {
   };
 }
 
+// Returns aggregated total_orders per target_date for a date range.
+// Single round-trip replacement for looping get_day_stats per day —
+// only the count is needed for the customer-facing weekly availability.
+export async function getWeekStats(cafeteriaId, fromDate, toDate) {
+  const { data, error } = await supabase.rpc("get_week_stats", {
+    p_cafeteria_id: cafeteriaId,
+    p_from_date:    fromDate,
+    p_to_date:      toDate
+  });
+
+  if (error) throw error;
+  const byDate = {};
+  (data || []).forEach((row) => {
+    byDate[row.target_date] = Number(row.total_orders || 0);
+  });
+  return byDate;
+}
+
 // Returns individual order rows for a given target_date.
 // Filters by target_date so pre-orders placed on earlier days appear
 // in the correct day's list.
@@ -35,10 +53,9 @@ export async function findToday(cafeteriaId, targetDate) {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, buyer_name, buyer_email, payment_method, payment_status, " +
-      "delivery_status, order_status, created_at, target_date, " +
-      "payment_confirmed_at, delivered_at, menu_price, menu_title, tracking_token, " +
-      "order_channel, created_by_staff"
+      "id, buyer_name, payment_method, payment_status, " +
+      "delivery_status, order_status, created_at, " +
+      "payment_confirmed_at, delivered_at, order_channel"
     )
     .eq("cafeteria_id", cafeteriaId)
     .eq("target_date", targetDate)
