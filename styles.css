@@ -260,6 +260,19 @@ textarea {
   color: var(--text);
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 textarea {
   resize: vertical;
 }
@@ -1713,6 +1726,12 @@ textarea {
   color: var(--text);
   font-family: inherit;
   transition: border-color 0.15s, background 0.15s;
+}
+
+.week-tab:hover:not([aria-disabled="true"]),
+.week-tab:focus-visible {
+  border-color: var(--primary);
+  background: #fff4f5;
 }
 
 .week-tab.is-active {
