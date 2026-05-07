@@ -2628,3 +2628,157 @@ textarea {
   min-height: 1.4rem;
   font-size: 0.9rem;
 }
+
+/* ── Admin settings form layout ─────────────────────────────────── */
+.form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.form .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: normal;
+}
+.form .checkbox-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+/* ── Admin read-only delivery status pills ──────────────────────── */
+.admin-delivery-status {
+  pointer-events: none;
+  cursor: default;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+.admin-delivery-status--pending { background: #fff1d6; color: #8a5a13; }
+.admin-delivery-status--prep    { background: #ddeaff; color: #1f4a8a; }
+.admin-delivery-status--ready   { background: #e2f3dc; color: #2f6f2a; }
+.admin-delivery-status--done    { background: #d6f5e3; color: #1f6a3a; }
+
+@media (max-width: 480px) {
+  .form .form-row { grid-template-columns: 1fr; }
+}
+
+/* ── Customer-app: focused mobile-first refresh ─────────────────── */
+.customer-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 6rem; /* leaves room for sticky CTA on mobile */
+}
+
+.customer-menu-hero__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.customer-menu-hero__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.45rem;
+  line-height: 1.25;
+}
+
+.customer-menu-hero__desc {
+  margin: 0 0 0.9rem;
+  color: var(--muted, #6a5d52);
+}
+
+.customer-menu-hero__price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.customer-menu-hero__price strong {
+  font-size: 1.3rem;
+}
+
+.customer-menu-hero__notice {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.88rem;
+  color: #5b4738;
+  background: #fff5e8;
+  border-left: 3px solid #d4a160;
+  border-radius: 6px;
+}
+.customer-menu-hero__notice:empty { display: none; }
+
+.customer-availability-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  background: #f3ece2;
+  color: #54392a;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.customer-availability-pill strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #a33d4d;
+}
+
+.customer-order-form .payment-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.customer-order-form .payment-fieldset legend {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.field-optional {
+  font-weight: normal;
+  font-size: 0.85em;
+  color: var(--muted, #6a5d52);
+}
+
+.tracking-link-card__title { margin: 0 0 0.5rem; }
+.tracking-link-card__copy  { margin: 0 0 1rem; color: var(--muted, #6a5d52); }
+
+/* Sticky submit CTA on mobile so the order button is always reachable */
+@media (max-width: 600px) {
+  .customer-submit {
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 5;
+    box-shadow: 0 6px 18px rgba(163, 61, 77, 0.25);
+  }
+}
+
+/* Packages disclosure — collapsed by default */
+.packages-disclosure summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.packages-disclosure summary::-webkit-details-marker { display: none; }
+.packages-disclosure summary::after {
+  content: "+";
+  position: absolute;
+  right: 1.2rem;
+  font-size: 1.4rem;
+  color: var(--muted, #6a5d52);
+}
+.packages-disclosure[open] summary::after { content: "−"; }
+.packages-disclosure { position: relative; }
+.packages-disclosure__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.packages-disclosure__intro { margin: 0.8rem 0 1rem; }

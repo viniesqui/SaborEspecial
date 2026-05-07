@@ -15,13 +15,16 @@ export default function handler(req, res) {
     );
   }
 
+  // P1-6: no hardcoded tenant fallback. If neither /s/<slug> nor ?slug= is
+  // present, surface an empty slug so the API short-circuits with a clear
+  // "tenant not found" error instead of silently routing to a default tenant.
   const slug = [
     `(function(){`,
     `  var m=window.location.pathname.match(/\\/s\\/([^/?#]+)/);`,
     `  if(m) return decodeURIComponent(m[1]).toLowerCase();`,
     `  var s=new URLSearchParams(window.location.search).get("slug");`,
     `  if(s) return s.toLowerCase();`,
-    `  return "ceep";`,
+    `  return "";`,
     `})()`,
   ].join("");
 

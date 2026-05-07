@@ -58,7 +58,7 @@ export async function findTodayForAdmin(cafeteriaId, targetDate) {
     .select(
       "id, buyer_name, buyer_email, buyer_phone, payment_method, payment_status, " +
       "payment_reference, created_at, payment_confirmed_at, order_channel, " +
-      "sale_type, package_id"
+      "sale_type, package_id, delivery_status, delivered_at"
     )
     .eq("cafeteria_id", cafeteriaId)
     .eq("target_date", targetDate)
