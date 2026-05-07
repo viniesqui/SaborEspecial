@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro | Almuerzos CEEP</title>
+  <meta name="description" content="Crea tu cafetería en SaborEspecial.">
+  <meta name="theme-color" content="#a33d4d">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a href="./index.html" class="site-brand">Almuerzos CEEP</a>
+    </header>
+
+    <main class="admin-layout">
+      <section class="card admin-gate login-gate">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Crea tu cafetería</p>
+            <h1>Registro</h1>
+          </div>
+        </div>
+        <p class="admin-hero__text">
+          Completa los siguientes datos para crear tu cafetería. Recibirás
+          acceso de administrador y un menú semanal de prueba.
+        </p>
+        <form id="signupForm" class="form">
+          <label>
+            Nombre de la cafetería
+            <input id="signupCafeteriaName" name="cafeteriaName" type="text" maxlength="80" required autofocus>
+          </label>
+          <label>
+            Correo electrónico
+            <input id="signupEmail" name="email" type="email" maxlength="254" required autocomplete="email">
+          </label>
+          <label>
+            Contraseña
+            <input id="signupPassword" name="password" type="password" minlength="8" maxlength="120" required autocomplete="new-password">
+          </label>
+          <button id="signupSubmit" type="submit" class="button">Crear cuenta</button>
+          <p id="signupFeedback" class="feedback" aria-live="polite"></p>
+        </form>
+        <p class="muted" style="margin-top:1rem;">
+          ¿Ya tienes cuenta? <a href="./index.html">Inicia sesión</a>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      © 2026 · Todos los derechos reservados · Desarrollado por Cristian Ramírez
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="/config.js"></script>
+  <script src="./supabase-client.js"></script>
+  <script src="./signup.js" defer></script>
+</body>
+</html>

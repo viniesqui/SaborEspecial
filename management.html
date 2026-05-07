@@ -37,6 +37,8 @@
         <button class="admin-tab is-active" data-tab="mgmtOperationsTab"  type="button">Operaciones</button>
         <button class="admin-tab"           data-tab="mgmtInsightsTab"    type="button">Análisis</button>
         <button class="admin-tab"           data-tab="mgmtAccountingTab"  type="button">Contabilidad</button>
+        <button class="admin-tab"           data-tab="mgmtStaffTab"       type="button">Equipo</button>
+        <button class="admin-tab"           data-tab="mgmtDiagnosticsTab" type="button">Diagnóstico</button>
       </nav>
 
       <!-- ================================================================
@@ -314,6 +316,78 @@
         </section>
 
       </section><!-- /mgmtAccountingTab -->
+
+      <!-- ================================================================
+           STAFF TAB — ADMIN only
+           ================================================================ -->
+      <section id="mgmtStaffTab" class="admin-content admin-only" hidden>
+
+        <section class="card admin-card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Identidad y permisos</p>
+              <h2>Equipo de la cafetería</h2>
+            </div>
+          </div>
+          <p class="admin-hero__text">
+            Invite a su personal a esta cafetería. Cada persona recibirá un correo
+            para crear su contraseña. Los roles disponibles son: <strong>ADMIN</strong>
+            (acceso completo), <strong>HELPER</strong> (cocina y pedidos) y
+            <strong>ORDERS</strong> (entregas).
+          </p>
+
+          <form id="staffInviteForm" class="form" style="display:grid;grid-template-columns:2fr 1fr auto;gap:0.6rem;align-items:end;">
+            <label>
+              Correo del nuevo miembro
+              <input id="staffInviteEmail" type="email" maxlength="254" required autocomplete="off">
+            </label>
+            <label>
+              Rol
+              <select id="staffInviteRole" required>
+                <option value="HELPER">HELPER</option>
+                <option value="ORDERS">ORDERS</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </label>
+            <button id="staffInviteSubmit" type="submit" class="button">Invitar</button>
+          </form>
+          <p id="staffInviteFeedback" class="feedback" aria-live="polite"></p>
+        </section>
+
+        <section class="card admin-card">
+          <div class="section-title">
+            <div><p class="eyebrow">Miembros actuales</p><h2>Lista del equipo</h2></div>
+          </div>
+          <div id="staffList" class="admin-orders-table">
+            <p class="insights-empty">Cargando equipo...</p>
+          </div>
+        </section>
+
+      </section><!-- /mgmtStaffTab -->
+
+      <!-- ================================================================
+           DIAGNOSTICS TAB — ADMIN only
+           ================================================================ -->
+      <section id="mgmtDiagnosticsTab" class="admin-content admin-only" hidden>
+
+        <section class="card admin-card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Salud del sistema</p>
+              <h2>Diagnóstico</h2>
+            </div>
+            <button type="button" id="diagnosticsRefreshBtn" class="button button--ghost">Refrescar</button>
+          </div>
+          <p class="admin-hero__text">
+            Verifica integridad de identidad y datos: usuarios huérfanos, cafeterías
+            sin administrador y otros indicadores.
+          </p>
+          <div id="diagnosticsContent">
+            <p class="insights-empty">Pulse "Refrescar" para ejecutar el diagnóstico.</p>
+          </div>
+        </section>
+
+      </section><!-- /mgmtDiagnosticsTab -->
 
     </main>
 

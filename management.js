@@ -99,6 +99,16 @@
     manualSaleSubmit:   document.getElementById("manualSaleSubmit"),
     manualSaleCancel:   document.getElementById("manualSaleCancel"),
     manualSaleFeedback: document.getElementById("manualSaleFeedback"),
+    // Staff (Equipo)
+    staffInviteForm:    document.getElementById("staffInviteForm"),
+    staffInviteEmail:   document.getElementById("staffInviteEmail"),
+    staffInviteRole:    document.getElementById("staffInviteRole"),
+    staffInviteSubmit:  document.getElementById("staffInviteSubmit"),
+    staffInviteFeedback: document.getElementById("staffInviteFeedback"),
+    staffList:          document.getElementById("staffList"),
+    // Diagnostics
+    diagnosticsContent:    document.getElementById("diagnosticsContent"),
+    diagnosticsRefreshBtn: document.getElementById("diagnosticsRefreshBtn"),
     // Logout
     logoutButton:      document.getElementById("mgmtLogoutButton")
   };
@@ -137,7 +147,7 @@
 
   // ── Tab switching (ADMIN only) ────────────────────────────────────
 
-  var TAB_IDS = ["mgmtOperationsTab", "mgmtInsightsTab", "mgmtAccountingTab"];
+  var TAB_IDS = ["mgmtOperationsTab", "mgmtInsightsTab", "mgmtAccountingTab", "mgmtStaffTab", "mgmtDiagnosticsTab"];
 
   function showTab(targetId) {
     TAB_IDS.forEach(function (id) {
@@ -149,8 +159,10 @@
         t.classList.toggle("is-active", t.dataset.tab === targetId);
       });
     }
-    if (targetId === "mgmtInsightsTab")   refreshAnalytics();
-    if (targetId === "mgmtAccountingTab") refreshAccounting();
+    if (targetId === "mgmtInsightsTab")    refreshAnalytics();
+    if (targetId === "mgmtAccountingTab")  refreshAccounting();
+    if (targetId === "mgmtStaffTab")       refreshStaff();
+    if (targetId === "mgmtDiagnosticsTab") refreshDiagnostics();
   }
 
   function initTabs() {
@@ -1099,6 +1111,177 @@
       .subscribe();
   }
 
+  // ── Staff (Equipo) management ─────────────────────────────────────
+
+  var ROLE_LABELS = { ADMIN: "Administrador", HELPER: "Asistente", ORDERS: "Entregas" };
+
+  function renderStaffList(staff) {
+    if (!els.staffList) return;
+    if (!staff || !staff.length) {
+      els.staffList.innerHTML = '<p class="insights-empty">No hay miembros aún.</p>';
+      return;
+    }
+    var rows = staff.map(function (s) {
+      var lastSeen = s.lastSignInAt
+        ? new Date(s.lastSignInAt).toLocaleDateString("es-CR")
+        : (s.invitedAt ? "Pendiente de aceptar" : "—");
+      var roleLabel = ROLE_LABELS[s.role] || s.role;
+      return '' +
+        '<div class="admin-orders-table__row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid #eee;">' +
+          '<div><strong>' + escHtml(s.email) + '</strong></div>' +
+          '<div>' +
+            '<select class="staff-role-select" data-user-id="' + escHtml(s.userId) + '" data-current="' + escHtml(s.role) + '">' +
+              '<option value="ADMIN"' + (s.role === "ADMIN" ? " selected" : "") + '>ADMIN</option>' +
+              '<option value="HELPER"' + (s.role === "HELPER" ? " selected" : "") + '>HELPER</option>' +
+              '<option value="ORDERS"' + (s.role === "ORDERS" ? " selected" : "") + '>ORDERS</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="muted" title="Último acceso">' + escHtml(lastSeen) + '</div>' +
+          '<div>' +
+            '<button type="button" class="button button--ghost staff-remove-btn" data-user-id="' + escHtml(s.userId) + '" data-email="' + escHtml(s.email) + '">Eliminar</button>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+    els.staffList.innerHTML = rows;
+
+    els.staffList.querySelectorAll(".staff-remove-btn").forEach(function (btn) {
+      btn.addEventListener("click", onRemoveStaff);
+    });
+    els.staffList.querySelectorAll(".staff-role-select").forEach(function (sel) {
+      sel.addEventListener("change", onChangeStaffRole);
+    });
+  }
+
+  async function refreshStaff() {
+    if (!els.staffList) return;
+    els.staffList.innerHTML = '<p class="insights-empty">Cargando equipo...</p>';
+    try {
+      var data = await api.fetchJson("/auth-role?staff=1");
+      renderStaffList(data.staff || []);
+    } catch (err) {
+      els.staffList.innerHTML = '<p class="insights-empty">Error: ' + escHtml(err.message) + '</p>';
+    }
+  }
+
+  async function submitInviteStaff(event) {
+    event.preventDefault();
+    if (!els.staffInviteEmail || !els.staffInviteRole) return;
+    var email = String(els.staffInviteEmail.value || "").trim();
+    var role  = String(els.staffInviteRole.value  || "").trim();
+    if (!email) {
+      els.staffInviteFeedback.textContent = "Ingrese un correo.";
+      return;
+    }
+    els.staffInviteSubmit.disabled = true;
+    els.staffInviteFeedback.textContent = "Enviando invitación...";
+    try {
+      var result = await api.fetchJson("/auth-role", {
+        method: "POST",
+        body:   { action: "staff_invite", email: email, role: role }
+      });
+      els.staffInviteFeedback.textContent = result.message || "Invitación enviada.";
+      els.staffInviteEmail.value = "";
+      await refreshStaff();
+    } catch (err) {
+      els.staffInviteFeedback.textContent = "Error: " + err.message;
+    } finally {
+      els.staffInviteSubmit.disabled = false;
+    }
+  }
+
+  async function onRemoveStaff(event) {
+    var btn = event.currentTarget;
+    var userId = btn.dataset.userId;
+    var email  = btn.dataset.email;
+    if (!userId) return;
+    if (!window.confirm("¿Eliminar a " + email + " de esta cafetería?")) return;
+    btn.disabled = true;
+    try {
+      await api.fetchJson("/auth-role", {
+        method: "POST",
+        body:   { action: "staff_remove", userId: userId }
+      });
+      await refreshStaff();
+    } catch (err) {
+      window.alert("Error: " + err.message);
+      btn.disabled = false;
+    }
+  }
+
+  async function onChangeStaffRole(event) {
+    var sel = event.currentTarget;
+    var userId  = sel.dataset.userId;
+    var current = sel.dataset.current;
+    var next    = sel.value;
+    if (next === current) return;
+    sel.disabled = true;
+    try {
+      await api.fetchJson("/auth-role", {
+        method: "POST",
+        body:   { action: "staff_update_role", userId: userId, role: next }
+      });
+      sel.dataset.current = next;
+    } catch (err) {
+      window.alert("Error: " + err.message);
+      sel.value = current;
+    } finally {
+      sel.disabled = false;
+    }
+  }
+
+  // ── Diagnostics ────────────────────────────────────────────────────
+
+  function renderDiagnostics(payload) {
+    if (!els.diagnosticsContent) return;
+    var checks = payload.checks || {};
+    var orphaned = payload.orphanedAuthUsers || [];
+    var noAdmin  = payload.cafeteriasWithoutAdmin || [];
+
+    var html = '';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.8rem;margin-bottom:1rem;">';
+    Object.keys(checks).forEach(function (k) {
+      var c = checks[k];
+      var color = c.ok ? "#2c6e49" : "#842f3d";
+      html += '<div class="card" style="padding:0.8rem;"><strong>' + escHtml(k) + '</strong><br><span style="color:' + color + '">' +
+        (c.ok ? "OK" : "FALLA") + '</span>' +
+        (c.detail ? '<p class="muted">' + escHtml(c.detail) + '</p>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+
+    html += '<h3>Usuarios huérfanos (' + orphaned.length + ')</h3>';
+    html += '<p class="muted">Cuentas auth sin membresía en ninguna cafetería.</p>';
+    if (!orphaned.length) {
+      html += '<p class="insights-empty">Ninguno.</p>';
+    } else {
+      html += '<ul>' + orphaned.map(function (u) {
+        return '<li>' + escHtml(u.email) + ' — creado ' + escHtml(new Date(u.createdAt).toLocaleString("es-CR")) + '</li>';
+      }).join("") + '</ul>';
+    }
+
+    html += '<h3>Cafeterías sin administrador (' + noAdmin.length + ')</h3>';
+    if (!noAdmin.length) {
+      html += '<p class="insights-empty">Ninguna.</p>';
+    } else {
+      html += '<ul>' + noAdmin.map(function (c) {
+        return '<li><strong>' + escHtml(c.name) + '</strong> (' + escHtml(c.slug) + ')</li>';
+      }).join("") + '</ul>';
+    }
+
+    els.diagnosticsContent.innerHTML = html;
+  }
+
+  async function refreshDiagnostics() {
+    if (!els.diagnosticsContent) return;
+    els.diagnosticsContent.innerHTML = '<p class="insights-empty">Ejecutando diagnóstico...</p>';
+    try {
+      var payload = await api.fetchJson("/auth-role?diagnostics=1");
+      renderDiagnostics(payload);
+    } catch (err) {
+      els.diagnosticsContent.innerHTML = '<p class="insights-empty">Error: ' + escHtml(err.message) + '</p>';
+    }
+  }
+
   function setBannerSynced() { banner.setSynced(); }
   function setBannerError(msg, fn) { banner.setError(msg, fn); }
 
@@ -1150,6 +1333,9 @@
       loadSettings();
     }
 
+    if (els.staffInviteForm)      els.staffInviteForm.addEventListener("submit", submitInviteStaff);
+    if (els.diagnosticsRefreshBtn) els.diagnosticsRefreshBtn.addEventListener("click", refreshDiagnostics);
+
     initManualSaleModal();
     if (els.logoutButton) els.logoutButton.addEventListener("click", function () {
       window.supabaseClient.auth.signOut();
@@ -1167,7 +1353,7 @@
       }, 5 * 60 * 1000);
     } else {
       // Helper has no tabs — make sure the operations panel is the only one visible.
-      ["mgmtInsightsTab", "mgmtAccountingTab"].forEach(function (id) {
+      ["mgmtInsightsTab", "mgmtAccountingTab", "mgmtStaffTab", "mgmtDiagnosticsTab"].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.hidden = true;
       });
