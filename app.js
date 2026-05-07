@@ -369,8 +369,7 @@
 
       if (result.trackingToken) {
         var trackingUrl = window.location.origin +
-          window.location.pathname.replace(/[^/]*$/, "") +
-          "track.html?token=" + encodeURIComponent(result.trackingToken);
+          "/track.html?token=" + encodeURIComponent(result.trackingToken);
         showTrackingLink(trackingUrl);
       }
 
@@ -559,8 +558,7 @@
 
       if (els.pkgTrackingSection && els.pkgTrackingLink) {
         var trackingUrl = window.location.origin +
-          window.location.pathname.replace(/[^/]*$/, "") +
-          "track.html?token=" + encodeURIComponent(result.trackingToken);
+          "/track.html?token=" + encodeURIComponent(result.trackingToken);
         els.pkgTrackingLink.href        = trackingUrl;
         els.pkgTrackingLink.textContent = trackingUrl;
         if (els.pkgTrackingMessage) els.pkgTrackingMessage.textContent = result.message || "";
@@ -635,7 +633,7 @@
     if (els.logoutButton) {
       els.logoutButton.addEventListener("click", function () {
         sessionStorage.removeItem("ceep-role-session");
-        window.location.replace("./index.html");
+        window.location.replace("/index.html");
       });
     }
 
@@ -656,7 +654,7 @@
     window.setInterval(function () { refreshSnapshot(false); }, Number(config.refreshIntervalMs || 30000));
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
     }
   }
 

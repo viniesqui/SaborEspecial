@@ -1,4 +1,4 @@
-const CACHE_NAME     = "ceep-lunch-static-v12";
+const CACHE_NAME     = "ceep-lunch-static-v13";
 const API_CACHE_NAME = "ceep-api-v1";
 const STATIC_ASSETS = [
   "./",
