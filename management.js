@@ -1156,7 +1156,7 @@
     if (!els.staffList) return;
     els.staffList.innerHTML = '<p class="insights-empty">Cargando equipo...</p>';
     try {
-      var data = await api.fetchJson("/staff");
+      var data = await api.fetchJson("/auth-role?staff=1");
       renderStaffList(data.staff || []);
     } catch (err) {
       els.staffList.innerHTML = '<p class="insights-empty">Error: ' + escHtml(err.message) + '</p>';
@@ -1175,9 +1175,9 @@
     els.staffInviteSubmit.disabled = true;
     els.staffInviteFeedback.textContent = "Enviando invitación...";
     try {
-      var result = await api.fetchJson("/staff", {
+      var result = await api.fetchJson("/auth-role", {
         method: "POST",
-        body:   { action: "invite", email: email, role: role }
+        body:   { action: "staff_invite", email: email, role: role }
       });
       els.staffInviteFeedback.textContent = result.message || "Invitación enviada.";
       els.staffInviteEmail.value = "";
@@ -1197,9 +1197,9 @@
     if (!window.confirm("¿Eliminar a " + email + " de esta cafetería?")) return;
     btn.disabled = true;
     try {
-      await api.fetchJson("/staff", {
+      await api.fetchJson("/auth-role", {
         method: "POST",
-        body:   { action: "remove", userId: userId }
+        body:   { action: "staff_remove", userId: userId }
       });
       await refreshStaff();
     } catch (err) {
@@ -1216,9 +1216,9 @@
     if (next === current) return;
     sel.disabled = true;
     try {
-      await api.fetchJson("/staff", {
+      await api.fetchJson("/auth-role", {
         method: "POST",
-        body:   { action: "update_role", userId: userId, role: next }
+        body:   { action: "staff_update_role", userId: userId, role: next }
       });
       sel.dataset.current = next;
     } catch (err) {
@@ -1275,7 +1275,7 @@
     if (!els.diagnosticsContent) return;
     els.diagnosticsContent.innerHTML = '<p class="insights-empty">Ejecutando diagnóstico...</p>';
     try {
-      var payload = await api.fetchJson("/diagnostics");
+      var payload = await api.fetchJson("/auth-role?diagnostics=1");
       renderDiagnostics(payload);
     } catch (err) {
       els.diagnosticsContent.innerHTML = '<p class="insights-empty">Error: ' + escHtml(err.message) + '</p>';
