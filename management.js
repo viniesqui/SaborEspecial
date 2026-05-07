@@ -813,16 +813,26 @@
     }
   }
 
+  function setAnalyticsError(message) {
+    var msg = '<p class="insights-empty">' + escHtml(message || "No se pudo cargar el análisis.") + '</p>';
+    if (els.prepList) els.prepList.innerHTML = msg;
+    if (els.forecast) els.forecast.innerHTML = msg;
+    if (els.heatmap)  els.heatmap.innerHTML  = msg;
+    if (els.weekly)   els.weekly.innerHTML   = msg;
+  }
+
   async function refreshAnalytics() {
     try {
       var payload = await api.fetchJson("/admin-orders", { method: "POST", body: { action: "analytics" } });
       if (els.insightsUpdatedAt) els.insightsUpdatedAt.textContent = fmt.dateTime(payload.updatedAt);
+      // Each renderer handles its own empty state; placeholders never linger.
       renderPrepList(payload.prep);
       renderForecast(payload.todayForecast);
       renderHeatmap(payload.heatmap);
       renderWeekly(payload.weekly);
-    } catch (_) {
+    } catch (err) {
       if (els.insightsUpdatedAt) els.insightsUpdatedAt.textContent = "Error al cargar análisis";
+      setAnalyticsError(err && err.message);
     }
   }
 
@@ -846,8 +856,11 @@
       renderAccountingDaily(payload.daily);
     } catch (err) {
       if (els.accountingUpdatedAt) els.accountingUpdatedAt.textContent = "Error al cargar el reporte";
-      if (els.accountingRecommendations) els.accountingRecommendations.innerHTML =
-        '<p class="insights-empty">No se pudo cargar el reporte: ' + escHtml(err.message) + '</p>';
+      var msg = '<p class="insights-empty">No se pudo cargar el reporte: ' + escHtml(err.message || "") + '</p>';
+      if (els.accountingRecommendations) els.accountingRecommendations.innerHTML = msg;
+      if (els.accountingKpis)            els.accountingKpis.innerHTML            = msg;
+      if (els.accountingStability)       els.accountingStability.innerHTML       = msg;
+      if (els.accountingDaily)           els.accountingDaily.innerHTML           = msg;
     }
   }
 

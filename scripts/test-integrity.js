@@ -685,7 +685,16 @@ section("8 · validateTargetDate()  —  Date Window Enforcement");
   // 8 days from now in CR time — must exceed the 7-day window.
   const tooFar    = new Date(Date.now() - 6 * 60 * 60 * 1000 + 8 * 24 * 60 * 60 * 1000)
     .toISOString().slice(0, 10);
-  const threeDays = crDayOffset(3);
+  // Pick a weekday within the 7-day window so the assertion does not collide
+  // with the P1-3 weekend gate when the test runs on Thu/Fri/Sat.
+  let threeDays = null;
+  for (let i = 1; i <= 7; i++) {
+    const candidate = crDayOffset(i);
+    const [y, m, d] = candidate.split("-").map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    if (dow !== 0 && dow !== 6) { threeDays = candidate; break; }
+  }
+  if (!threeDays) threeDays = crDayOffset(3);
 
   // ── Format rejections ─────────────────────────────────────────────────────
   expectThrow(
@@ -945,15 +954,15 @@ section("12 · buildDashboardSnapshot()  —  Extended Coverage");
   assert(snapSoldOut.availableMeals === 0, "Sold-out: availableMeals = 0");
   assert(snapSoldOut.isSalesOpen === false, "Sold-out: isSalesOpen = false even with window open");
 
-  // ── normalizePaymentStatus: all paid statuses map to "PAGADO" display ─────
+  // ── normalizePaymentStatus: all paid statuses map to canonical CONFIRMADO ─
   const snapPaid = buildDashboardSnapshot(settings, menu, [
     { ...sinpeOrder, payment_status: "PAGADO" },
     { ...sinpeOrder, payment_status: "CONFIRMADO" },
     { ...sinpeOrder, payment_status: "CONFIRMADO_SINPE" }
   ]);
   assert(
-    snapPaid.orders.every((o) => o.paymentStatus === "PAGADO"),
-    "All three legacy paid statuses map to 'PAGADO' in snapshot.orders");
+    snapPaid.orders.every((o) => o.paymentStatus === CANONICAL_PAID),
+    "All three legacy paid statuses map to canonical CONFIRMADO in snapshot.orders");
 
   // ── P3-1 consistency check ────────────────────────────────────────────────
   // buildDashboardSnapshot uses normalizePaymentStatus() (returns "PAGADO")
@@ -983,14 +992,16 @@ section("13 · getUpcomingDayKeys()  —  Day-Picker Completeness");
   assert(keys7.length === 7, "getUpcomingDayKeys(7) returns exactly 7 items");
   assert(keys7[0] === getDayKey(), "First element is today in CR timezone");
 
-  // Each successive key must be exactly 24 h after the previous one.
-  let consecutive = true;
+  // Each successive key is at least 24h after the previous one and at most
+  // 3 days apart (the Fri→Mon jump introduced by the weekend filter).
+  let stepOk = true;
   for (let i = 1; i < keys7.length; i++) {
     const prev = new Date(keys7[i - 1] + "T00:00:00Z").getTime();
     const curr = new Date(keys7[i]     + "T00:00:00Z").getTime();
-    if (curr - prev !== 86400000) { consecutive = false; break; }
+    const step = (curr - prev) / 86400000;
+    if (step !== 1 && step !== 3) { stepOk = false; break; }
   }
-  assert(consecutive, "All 7 keys are consecutive calendar days (no gaps)");
+  assert(stepOk, "Successive keys advance by 1 day, or 3 days across a weekend");
 
   // P1-3: result must not include Saturday (6) or Sunday (0).
   const weekends = keys7.filter((k) => {
