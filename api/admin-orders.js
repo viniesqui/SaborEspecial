@@ -102,6 +102,21 @@ export default async function handler(req, res) {
         supabase.from("v_peak_hour_heatmap").select("*").eq("cafeteria_id", cafeteriaId).order("hour_of_day", { ascending: true }),
         supabase.from("v_weekly_summary").select("*").eq("cafeteria_id", cafeteriaId).order("week_start", { ascending: false }).limit(8)
       ]);
+
+      // Surface DB errors instead of silently masking them as "empty data".
+      // Each view comes from migration 004_analytics_views.sql; if any of these
+      // throws, the migration probably hasn't been applied to this database.
+      const viewErrors = [
+        ["v_daily_prep_list",   prepResult.error],
+        ["v_demand_forecast",   forecastResult.error],
+        ["v_peak_hour_heatmap", heatmapResult.error],
+        ["v_weekly_summary",    weeklyResult.error]
+      ].filter(([, err]) => err);
+      if (viewErrors.length) {
+        const detail = viewErrors.map(([name, err]) => `${name}: ${err.message}`).join("; ");
+        throw { status: 500, message: `Analytics views unavailable (${detail})` };
+      }
+
       const forecast      = forecastResult.data || [];
       const todayForecast = forecast.find((f) => Number(f.day_of_week) === todayDow) || null;
       return res.status(200).json({
