@@ -196,6 +196,7 @@ async function handleCustomerOrder(req, res) {
     const buyerEmail    = String(order.buyerEmail || "").trim().toLowerCase();
     const buyerName     = String(order.buyerName  || "").trim();
     const paymentMethod = String(order.paymentMethod).toUpperCase();
+    const requestId     = order.requestId || null;
 
     let result;
 
@@ -237,7 +238,8 @@ async function handleCustomerOrder(req, res) {
         paymentMethod,
         trackingToken,
         orderChannel:    "DIGITAL",
-        createdByStaff:  false
+        createdByStaff:  false,
+        requestId
       });
 
       if (!result?.ok) {

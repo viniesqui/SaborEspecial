@@ -179,7 +179,8 @@ export async function createAtomic({
   buyerName, buyerEmail,
   menuId, menuTitle, menuDescription, menuPrice,
   paymentMethod, trackingToken,
-  orderChannel = "DIGITAL", createdByStaff = false
+  orderChannel = "DIGITAL", createdByStaff = false,
+  requestId = null
 }) {
   const { data, error } = await supabase.rpc("create_order_atomic", {
     p_cafeteria_id:     cafeteriaId,
@@ -194,7 +195,8 @@ export async function createAtomic({
     p_payment_method:   String(paymentMethod).toUpperCase(),
     p_tracking_token:   trackingToken,
     p_order_channel:    orderChannel,
-    p_created_by_staff: createdByStaff
+    p_created_by_staff: createdByStaff,
+    p_request_id:       requestId || null
   });
 
   if (error) throw error;

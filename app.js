@@ -14,6 +14,7 @@
     weekMenus:       [],
     selectedDate:    "",   // YYYY-MM-DD the buyer has selected
     isSubmitting:    false,
+    currentRequestId: newRequestId(), // stable across retries; regenerated after success
     creditBalance:   0,
     selectedPkg:     null, // { id, title, mealCount, price }
     isPkgSubmitting: false
@@ -336,7 +337,7 @@
       buyerEmail:    String(fd.get("buyerEmail")   || "").trim().toLowerCase(),
       paymentMethod: String(fd.get("paymentMethod") || "").trim(),
       targetDate:    state.selectedDate || todayKey(),
-      requestId:     newRequestId()
+      requestId:     state.currentRequestId
     };
 
     if (!payload.buyerName || !payload.paymentMethod) {
@@ -373,6 +374,8 @@
         showTrackingLink(trackingUrl);
       }
 
+      // Order confirmed — rotate the request ID so the next order gets a fresh key
+      state.currentRequestId = newRequestId();
       // Refresh to get the updated week view including the new order
       await refreshSnapshot(false);
       setFeedback(result.message || "Compra registrada correctamente.", false);
