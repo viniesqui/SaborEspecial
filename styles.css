@@ -2258,6 +2258,14 @@ textarea {
   margin-left: 0.3rem;
 }
 
+.field-hint {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
 /* KPI cards grid */
 .accounting-kpis {
   display: grid;
