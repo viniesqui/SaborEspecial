@@ -384,9 +384,10 @@
       pay.className   = "delivery-payment-status admin-delivery-payment " +
         (paid ? "delivery-payment-status--paid" : "delivery-payment-status--pending");
 
-      var st = node.querySelector(".admin-delivery-status");
-      st.textContent = label.text;
-      st.className   = "delivery-action admin-delivery-status admin-delivery-status--" + label.mod;
+      node.querySelectorAll(".admin-delivery-action").forEach(function (btn) {
+        btn.classList.toggle("is-selected", btn.dataset.deliveryStatus === order.deliveryStatus);
+        btn.addEventListener("click", function () { updateDeliveryStatus(order.id, btn.dataset.deliveryStatus); });
+      });
 
       node.querySelector(".admin-delivery-delivered-at").textContent = order.deliveredAtLabel || "";
       fragment.appendChild(node);
@@ -979,6 +980,7 @@
     try {
       var snapshot = await api.fetchJson("/deliveries", { method: "POST", body: { orderId, deliveryStatus } });
       renderDeliveries(snapshot);
+      renderAdminDeliveries(snapshot);
       banner.setSynced();
       if (snapshot.emailWarning) setFeedback(snapshot.emailWarning, false);
       else                       setFeedback("", false);

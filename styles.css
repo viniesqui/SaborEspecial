@@ -2809,16 +2809,19 @@ textarea {
 }
 
 /* ── Admin read-only delivery status pills ──────────────────────── */
-.admin-delivery-status {
-  pointer-events: none;
-  cursor: default;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+.admin-delivery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  width: 100%;
 }
-.admin-delivery-status--pending { background: #fff1d6; color: #8a5a13; }
-.admin-delivery-status--prep    { background: #ddeaff; color: #1f4a8a; }
-.admin-delivery-status--ready   { background: #e2f3dc; color: #2f6f2a; }
-.admin-delivery-status--done    { background: #d6f5e3; color: #1f6a3a; }
+.admin-delivery-actions .delivery-action {
+  flex: 1 1 auto;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  width: auto;
+}
 
 @media (max-width: 480px) {
   .form .form-row { grid-template-columns: 1fr; }
