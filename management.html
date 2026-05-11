@@ -417,7 +417,7 @@
     </article>
   </template>
 
-  <!-- ── ADMIN delivery-status row template (read-only) ───────────── -->
+  <!-- ── ADMIN delivery-status row template ──────────────────────── -->
   <template id="adminDeliveryRowTemplate">
     <article class="delivery-table__row">
       <div class="delivery-table__cell">
@@ -431,7 +431,12 @@
         <span class="delivery-payment-status admin-delivery-payment"></span>
       </div>
       <div class="delivery-table__cell">
-        <span class="delivery-action admin-delivery-status"></span>
+        <div class="admin-delivery-actions">
+          <button type="button" class="delivery-action admin-delivery-action" data-delivery-status="PENDIENTE_ENTREGA">Pendiente</button>
+          <button type="button" class="delivery-action admin-delivery-action" data-delivery-status="EN_PREPARACION">En Prep.</button>
+          <button type="button" class="delivery-action admin-delivery-action" data-delivery-status="LISTO_PARA_ENTREGA">Listo</button>
+          <button type="button" class="delivery-action admin-delivery-action" data-delivery-status="ENTREGADO">Entregado</button>
+        </div>
         <p class="delivery-status-time admin-delivery-delivered-at"></p>
       </div>
     </article>
