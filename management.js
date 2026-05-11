@@ -834,6 +834,11 @@
   }
 
   async function refreshAnalytics() {
+    if (els.insightsUpdatedAt) els.insightsUpdatedAt.textContent = "Cargando...";
+    if (els.prepList) els.prepList.innerHTML = '<p class="insights-empty">Cargando datos de producción...</p>';
+    if (els.forecast) els.forecast.innerHTML = '<p class="insights-empty">Cargando predicción...</p>';
+    if (els.heatmap)  els.heatmap.innerHTML  = '<p class="insights-empty">Cargando heatmap...</p>';
+    if (els.weekly)   els.weekly.innerHTML   = '<p class="insights-empty">Cargando resumen financiero...</p>';
     try {
       var payload = await api.fetchJson("/admin-orders", { method: "POST", body: { action: "analytics" } });
       if (els.insightsUpdatedAt) els.insightsUpdatedAt.textContent = fmt.dateTime(payload.updatedAt);
