@@ -113,7 +113,7 @@
           <p id="mgmtCurrentMenuDescription" class="menu-description">Esperando datos del servidor.</p>
           <div class="menu-details">
             <div><span class="detail-label">Precio</span>    <strong id="mgmtCurrentMenuPrice">-</strong></div>
-            <div><span class="detail-label">Venta</span>     <strong id="mgmtSalesWindow">-</strong></div>
+            <div><span class="detail-label">Pedidos</span>   <strong id="mgmtSalesWindow">-</strong></div>
             <div><span class="detail-label">Entrega</span>   <strong id="mgmtDeliveryWindow">-</strong></div>
             <div><span class="detail-label">Digital</span>   <strong id="mgmtDigitalCount">0</strong></div>
             <div><span class="detail-label">En persona</span> <strong id="mgmtWalkInCount">0</strong></div>
@@ -147,20 +147,21 @@
             </label>
             <div class="form-row">
               <label>
-                Inicio de ventas
+                Apertura de pedidos
                 <input id="setSalesStart" name="sales_start" type="time" required>
               </label>
               <label>
-                Fin de ventas
+                Cierre de pedidos
                 <input id="setSalesEnd" name="sales_end" type="time" required>
               </label>
             </div>
             <label>
-              Hora límite (cutoff)
+              Hora de corte para cocina
+              <small class="field-hint">Límite para incluir un pedido en la producción del día</small>
               <input id="setCutoffTime" name="cutoff_time" type="time" required>
             </label>
             <label>
-              Ventana de entrega
+              Horario de entrega
               <input id="setDeliveryWindow" name="delivery_window" type="text" maxlength="60" required>
             </label>
             <label>
@@ -169,7 +170,7 @@
             </label>
             <label class="checkbox-row">
               <input id="setDisableWindow" name="disable_sales_window" type="checkbox">
-              Desactivar la ventana de ventas (aceptar pedidos a cualquier hora)
+              Sin horario de pedidos (aceptar pedidos a cualquier hora)
             </label>
             <button id="mgmtSettingsSubmit" type="submit" class="button">Guardar configuración</button>
             <p id="mgmtSettingsFeedback" class="feedback" aria-live="polite"></p>
