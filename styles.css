@@ -838,6 +838,33 @@ textarea {
   flex-wrap: wrap;
 }
 
+.export-date-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+  color: var(--muted);
+  gap: 0.15rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.export-date-input {
+  font: inherit;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  min-width: 9rem;
+}
+
+.export-date-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  border-color: var(--primary);
+}
+
 .admin-hero h1 {
   margin: 0;
   font-size: clamp(2.4rem, 6vw, 4.7rem);
@@ -990,6 +1017,18 @@ textarea {
   border-color: var(--primary-dark);
 }
 
+.payment-toggle--delete {
+  background: #fff;
+  color: #842f3d;
+  border-color: rgba(132, 47, 61, 0.35);
+}
+
+.payment-toggle--delete:hover {
+  background: #842f3d;
+  color: #fff;
+  border-color: #842f3d;
+}
+
 .buyer-row,
 .empty-state {
   background: var(--surface-strong);
@@ -1061,12 +1100,22 @@ textarea {
 
 .track-live-dot.is-connected {
   background: var(--success);
-  animation: track-pulse 2s ease-in-out infinite;
+  animation: track-pulse 1.6s ease-in-out infinite;
 }
 
+/* Combined scale + opacity so the dot is visibly "moving",
+   not just fading — works the same way for every step in the
+   timeline (the issue used to be most noticeable on the very
+   first step, where the opacity-only pulse was easy to miss). */
 @keyframes track-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.18);
+  }
 }
 
 /* 5-step timeline */

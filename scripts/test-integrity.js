@@ -671,30 +671,19 @@ section("7 · validateOrder()  —  Server-Side Input Validation");
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SUITE 8 · validateTargetDate()  —  Date Window Enforcement
+// SUITE 8 · validateTargetDate()  —  Today-only Enforcement
 // ─────────────────────────────────────────────────────────────────────────────
-// The server must reject past dates, non-calendar dates, and dates beyond
-// the 7-day pre-order window.
+// Policy: orders may only be placed for today. Any other date (past, future,
+// invalid format) must be rejected.
 // ═════════════════════════════════════════════════════════════════════════════
 
-section("8 · validateTargetDate()  —  Date Window Enforcement");
+section("8 · validateTargetDate()  —  Today-only Enforcement");
 
 {
   const todayKey  = getDayKey();
   const yesterday = getDayKey(new Date(Date.now() - 86400000));
-  // 8 days from now in CR time — must exceed the 7-day window.
-  const tooFar    = new Date(Date.now() - 6 * 60 * 60 * 1000 + 8 * 24 * 60 * 60 * 1000)
-    .toISOString().slice(0, 10);
-  // Pick a weekday within the 7-day window so the assertion does not collide
-  // with the P1-3 weekend gate when the test runs on Thu/Fri/Sat.
-  let threeDays = null;
-  for (let i = 1; i <= 7; i++) {
-    const candidate = crDayOffset(i);
-    const [y, m, d] = candidate.split("-").map(Number);
-    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    if (dow !== 0 && dow !== 6) { threeDays = candidate; break; }
-  }
-  if (!threeDays) threeDays = crDayOffset(3);
+  const tomorrow  = crDayOffset(1);
+  const tooFar    = crDayOffset(8);
 
   // ── Format rejections ─────────────────────────────────────────────────────
   expectThrow(
@@ -705,30 +694,22 @@ section("8 · validateTargetDate()  —  Date Window Enforcement");
     () => validateTargetDate("2026-5-6",   todayKey), "inválida", "Missing zero-padding → error");
   expectThrow(
     () => validateTargetDate("",           todayKey), "inválida", "Empty string → error");
-  // "2026-99-99" passes the format regex but month 99 sorts after the 7-day
-  // max date (string comparison), so the "too far ahead" check fires first.
-  // The date is correctly rejected — the exact message depends on which check
-  // fires first, so we assert no-message-constraint here.
-  expectThrow(
-    () => validateTargetDate("2026-99-99", todayKey), null, "Out-of-range date 2026-99-99 → correctly rejected");
 
-  // ── Past date ─────────────────────────────────────────────────────────────
+  // ── Any non-today date is rejected ───────────────────────────────────────
   expectThrow(
     () => validateTargetDate(yesterday, todayKey),
-    "pasadas", `Yesterday (${yesterday}) → error`);
-
-  // ── Beyond 7-day window ──────────────────────────────────────────────────
+    "hoy", `Yesterday (${yesterday}) → error`);
   expectThrow(
-    () => validateTargetDate(tooFar, todayKey),
-    "7 días", `8 days from now (${tooFar}) → error`);
+    () => validateTargetDate(tomorrow,  todayKey),
+    "hoy", `Tomorrow (${tomorrow}) → error`);
+  expectThrow(
+    () => validateTargetDate(tooFar,    todayKey),
+    "hoy", `8 days from now (${tooFar}) → error`);
 
-  // ── Valid dates ──────────────────────────────────────────────────────────
+  // ── Today is accepted ────────────────────────────────────────────────────
   expectNoThrow(
-    () => validateTargetDate(todayKey,  todayKey),
+    () => validateTargetDate(todayKey, todayKey),
     `Today (${todayKey}) → accepted`);
-  expectNoThrow(
-    () => validateTargetDate(threeDays, todayKey),
-    `3 days ahead (${threeDays}) → accepted`);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -752,10 +733,10 @@ section("9 · Weekend Order Gate  [P1-3 regression — fails until fix]");
   if (!weekendKey) {
     skip("No weekend day falls within the next 7 days", "extremely rare edge case");
   } else {
-    // validateTargetDate() must reject a weekend date.
+    // validateTargetDate() must reject a weekend date (it's not today).
     expectThrow(
       () => validateTargetDate(weekendKey, todayKey),
-      "fin de semana",
+      "hoy",
       `validateTargetDate rejects ${weekendKey} (weekend) [P1-3]`);
 
     // getUpcomingDayKeys() must not include any Saturday or Sunday.

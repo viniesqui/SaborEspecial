@@ -225,21 +225,16 @@
     state.snapshot = snapshot;
     if (els.dailyMessage) els.dailyMessage.textContent = snapshot.message || "";
 
-    // Rebuild week tabs if weekly data is present
+    // Rebuild week tabs if weekly data is present.
+    // Customers may only order for today, so we filter the week down to
+    // today's entry only — no future-day pre-ordering from the public UI.
     if (snapshot.weekMenus && snapshot.weekMenus.length) {
-      renderWeekTabs(snapshot.weekMenus);
+      var today      = todayKey();
+      var todayOnly  = snapshot.weekMenus.filter(function (d) { return d.date === today; });
+      var weekToShow = todayOnly.length ? todayOnly : snapshot.weekMenus.slice(0, 1);
 
-      // On first load auto-select today (or first available day)
-      if (!state.selectedDate) {
-        var today = todayKey();
-        var firstOpen = snapshot.weekMenus.find(function (d) { return d.isOrderingOpen; });
-        var todayEntry = snapshot.weekMenus.find(function (d) { return d.date === today; });
-        selectDate((todayEntry || firstOpen || snapshot.weekMenus[0]).date);
-      } else {
-        // Re-render the current day's card in case availability changed
-        var current = snapshot.weekMenus.find(function (d) { return d.date === state.selectedDate; });
-        if (current) renderDayMenu(current);
-      }
+      renderWeekTabs(weekToShow);
+      selectDate(weekToShow[0].date);
     } else {
       // Fallback: single-day mode (no weekMenus in response)
       var menu = snapshot.menu;  // may be null when no menu is configured

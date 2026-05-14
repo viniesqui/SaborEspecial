@@ -3,7 +3,7 @@ import { getDayKey }                                  from "../lib/dashboard.js"
 import { requireAuth }                                from "../lib/auth.js";
 import { sendOrderStatusEmail }                       from "../lib/email.js";
 import { supabase }                                   from "../lib/supabase.js";
-import { findTodayForAdmin, updatePayment, getStats } from "../data/orders.repo.js";
+import { findTodayForAdmin, updatePayment, getStats, softDelete } from "../data/orders.repo.js";
 import { addCredits }                                 from "../data/credits.repo.js";
 import { getSettings, updateSettings }                from "../data/settings.repo.js";
 import { CANONICAL_PAID, toCanonicalPayment }         from "../lib/payment-status.js";
@@ -193,6 +193,21 @@ export default async function handler(req, res) {
           }).catch(() => null);
         }
       }
+
+      const [orders, stats] = await Promise.all([
+        findTodayForAdmin(cafeteriaId, dayKey),
+        getStats(cafeteriaId, dayKey)
+      ]);
+      return res.status(200).json(buildSnapshot(orders, stats));
+    }
+
+    if (action === "deleteOrder") {
+      const orderId = String(req.body?.orderId || "");
+      if (!orderId) {
+        return res.status(400).json({ ok: false, message: "Pedido inválido." });
+      }
+
+      await softDelete(orderId, cafeteriaId);
 
       const [orders, stats] = await Promise.all([
         findTodayForAdmin(cafeteriaId, dayKey),

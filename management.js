@@ -338,9 +338,19 @@
       node.querySelector(".admin-order-confirmed-at").textContent = order.paymentConfirmedAtLabel || "Sin verificar";
 
       node.querySelectorAll(".payment-toggle").forEach(function (btn) {
+        if (!btn.dataset.paymentStatus) return; // skip non-status buttons (e.g. delete)
         btn.classList.toggle("is-selected", btn.dataset.paymentStatus === order.paymentStatus);
         btn.addEventListener("click", function () { updatePaymentStatus(order.id, btn.dataset.paymentStatus); });
       });
+
+      var deleteBtn = node.querySelector(".admin-order-delete");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          var confirmMsg = "¿Eliminar el pedido de " + (order.buyerName || "este cliente") +
+            "? Esta acción no se puede deshacer.";
+          if (window.confirm(confirmMsg)) deleteOrder(order.id);
+        });
+      }
 
       fragment.appendChild(node);
     });
@@ -974,6 +984,24 @@
     }
   }
 
+  async function deleteOrder(orderId) {
+    banner.setSyncing();
+    try {
+      var snapshot = await api.fetchJson("/admin-orders", {
+        method: "POST",
+        body:   { action: "deleteOrder", orderId: orderId }
+      });
+      renderAdminOrders(snapshot);
+      setFeedback("Pedido eliminado.", false);
+      banner.setSynced();
+      // Refresh the rest of the dashboard so deletion is reflected everywhere.
+      loadAll();
+    } catch (err) {
+      setFeedback(err.message, true);
+      banner.setError(err.message, err.retryable !== false ? function () { deleteOrder(orderId); } : null);
+    }
+  }
+
   async function updateDeliveryStatus(orderId, deliveryStatus) {
     banner.setSyncing();
     setFeedback("Actualizando...", false);
@@ -995,9 +1023,29 @@
     els.exportButton.disabled = true;
     setFeedback("Exportando pedidos...", false);
     try {
-      var now      = new Date();
-      var fileDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
-      await api.downloadFile("/orders", { action: "export" }, "orders-" + fileDate + ".csv");
+      var fromInput = document.getElementById("mgmtExportFrom");
+      var toInput   = document.getElementById("mgmtExportTo");
+      var fromDate  = fromInput && fromInput.value ? fromInput.value : "";
+      var toDate    = toInput   && toInput.value   ? toInput.value   : "";
+
+      if (fromDate && toDate && fromDate > toDate) {
+        setFeedback("La fecha 'Desde' no puede ser posterior a 'Hasta'.", true);
+        els.exportButton.disabled = false;
+        return;
+      }
+
+      var now       = new Date();
+      var todayKey  = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+      var rangeTag  = fromDate || toDate
+        ? "-" + (fromDate || "inicio") + "_a_" + (toDate || todayKey)
+        : "-todos-" + todayKey;
+      var filename  = "orders" + rangeTag + ".csv";
+
+      await api.downloadFile(
+        "/orders",
+        { action: "export", fromDate: fromDate, toDate: toDate },
+        filename
+      );
       setFeedback("Archivo exportado correctamente.", false);
     } catch (err) {
       setFeedback(err.message, true);
