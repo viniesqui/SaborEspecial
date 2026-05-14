@@ -1,0 +1,19 @@
+{
+  "threshold": 0,
+  "minLines": 5,
+  "minTokens": 50,
+  "reporters": ["console", "json"],
+  "output": "./.jscpd-report",
+  "absolute": false,
+  "gitignore": true,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/api/**",
+    "**/supabase/**",
+    "**/scripts/**",
+    "**/.jscpd-report/**",
+    "**/package-lock.json"
+  ],
+  "pattern": "{*.js,shared/**/*.js}"
+}

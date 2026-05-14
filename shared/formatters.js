@@ -65,6 +65,7 @@
       var d = new Date(value);
       if (Number.isNaN(d.getTime())) return "";
 
+      // jscpd:ignore-start  (TODO WS-06: extract Intl.DateTimeFormat part-picker helper)
       var parts = new Intl.DateTimeFormat("es-CR", {
         timeZone: "America/Costa_Rica",
         hour:     "numeric",
@@ -76,6 +77,7 @@
         var p = parts.find(function (x) { return x.type === type; });
         return p ? p.value : "";
       }
+      // jscpd:ignore-end
 
       return get("hour") + ":" + get("minute") + " " +
         get("dayPeriod").replace(/\./g, "").toUpperCase();

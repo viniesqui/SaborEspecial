@@ -3,16 +3,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup":    "bash setup.sh",
-    "start":    "vercel dev",
-    "init-db":  "node scripts/migrate.js",
-    "db:seed":  "node scripts/seed.js",
-    "test":     "node scripts/test-integrity.js"
+    "setup":          "bash setup.sh",
+    "start":          "vercel dev",
+    "init-db":        "node scripts/migrate.js",
+    "db:seed":        "node scripts/seed.js",
+    "test":           "node scripts/test-integrity.js",
+    "build":          "node scripts/build.mjs",
+    "lint":           "eslint .",
+    "lint:changed":   "node scripts/lint-changed.mjs",
+    "lint:fix":       "eslint . --fix",
+    "dup-check":      "jscpd",
+    "bundle-budget":  "node scripts/bundle-budget.mjs",
+    "baseline:update":"node scripts/update-baseline.mjs",
+    "prepare":        "node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "jscpd": "^4.2.0",
     "pg": "^8.13.0"
   }
 }
