@@ -103,6 +103,28 @@ export async function findAll(cafeteriaId) {
   return data || [];
 }
 
+// Returns orders within an inclusive target_date range (used by CSV export filter).
+// Either bound may be empty/null to leave that side unbounded.
+export async function findInRange(cafeteriaId, fromDate, toDate) {
+  let q = supabase
+    .from("orders")
+    .select(
+      "id, buyer_name, buyer_phone, buyer_email, payment_method, payment_status, " +
+      "payment_reference, menu_title, menu_description, menu_price, " +
+      "order_status, delivery_status, record_status, created_at, target_date, " +
+      "payment_confirmed_at, delivered_at, day_key, order_channel, created_by_staff"
+    )
+    .eq("cafeteria_id", cafeteriaId)
+    .order("created_at", { ascending: false });
+
+  if (fromDate) q = q.gte("target_date", fromDate);
+  if (toDate)   q = q.lte("target_date", toDate);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
 // Fetches a single order for mutation validation.
 // Scoped to cafeteria_id only — no day restriction since staff may update
 // orders placed on a different day than the one being served.
@@ -151,6 +173,19 @@ export async function updatePayment(orderId, cafeteriaId, paymentStatus, verifie
   const { error } = await supabase
     .from("orders")
     .update(update)
+    .eq("id", orderId)
+    .eq("cafeteria_id", cafeteriaId);
+
+  if (error) throw error;
+}
+
+// Soft-deletes an order by setting record_status = 'CANCELADO'.
+// The order remains in the database (for accounting / audit) but is
+// excluded from every other query thanks to the .neq(record_status, 'CANCELADO') filter.
+export async function softDelete(orderId, cafeteriaId) {
+  const { error } = await supabase
+    .from("orders")
+    .update({ record_status: "CANCELADO" })
     .eq("id", orderId)
     .eq("cafeteria_id", cafeteriaId);
 

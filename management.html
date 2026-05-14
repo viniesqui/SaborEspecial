@@ -67,9 +67,17 @@
               <p class="eyebrow">Formulario</p>
               <h2>Menú del <span id="mgmtSelectedDayLabel">día</span></h2>
             </div>
-            <div class="admin-actions">
-              <!-- Export button — ADMIN only -->
-              <button id="mgmtExportButton" type="button" class="button button--ghost admin-only" hidden>Exportar Excel</button>
+            <div class="admin-actions admin-only" hidden id="mgmtExportControls">
+              <!-- Export with optional date range — ADMIN only -->
+              <label class="export-date-label">
+                <span>Desde</span>
+                <input id="mgmtExportFrom" type="date" class="export-date-input" aria-label="Fecha desde">
+              </label>
+              <label class="export-date-label">
+                <span>Hasta</span>
+                <input id="mgmtExportTo" type="date" class="export-date-input" aria-label="Fecha hasta">
+              </label>
+              <button id="mgmtExportButton" type="button" class="button button--ghost">Exportar Excel</button>
             </div>
           </div>
 
@@ -413,6 +421,7 @@
         <div class="admin-order-actions">
           <button type="button" class="payment-toggle" data-payment-status="PENDIENTE_DE_PAGO">Pendiente</button>
           <button type="button" class="payment-toggle" data-payment-status="CONFIRMADO">Pagado</button>
+          <button type="button" class="payment-toggle payment-toggle--delete admin-order-delete" aria-label="Eliminar pedido">Eliminar</button>
         </div>
       </div>
     </article>
@@ -472,7 +481,7 @@
   <dialog id="manualSaleDialog" class="manual-sale-dialog" aria-labelledby="manualSaleDialogTitle">
     <div class="manual-sale-dialog__header">
       <h2 id="manualSaleDialogTitle" class="manual-sale-dialog__title">Venta directa</h2>
-      <p class="manual-sale-dialog__subtitle">Registra la venta de un cliente que llegó en persona</p>
+      <p class="manual-sale-dialog__subtitle">Registra la venta de un cliente que llegó en persona — solo para hoy.</p>
     </div>
     <form id="manualSaleForm" class="manual-sale-dialog__form" method="dialog" novalidate>
       <label class="manual-sale-dialog__label">

@@ -4,7 +4,7 @@ import { getDayKey, isCutoffPassedForDate, buildDashboardSnapshot } from "../lib
 import { validateOrder, validateTargetDate }                    from "../lib/validators.js";
 import { findBySlug }                                           from "../data/cafeterias.repo.js";
 import { findActive as findActiveMenu }                         from "../data/menus.repo.js";
-import { createAtomic, findToday, getStats, findAll }           from "../data/orders.repo.js";
+import { createAtomic, findToday, getStats, findAll, findInRange } from "../data/orders.repo.js";
 import { createCreditOrder }                                    from "../data/credits.repo.js";
 import { getSettings }                                         from "../data/settings.repo.js";
 import { sendOrderStatusEmail }                                 from "../lib/email.js";
@@ -40,10 +40,32 @@ export default async function handler(req, res) {
   if (req.body?.action === "export") {
     try {
       const { cafeteriaId } = await requireAuth(req, ["ADMIN"]);
-      const orders          = await findAll(cafeteriaId);
-      const csv             = buildOrdersCsv(orders);
+
+      // Optional date filter — fromDate/toDate (inclusive, YYYY-MM-DD against target_date).
+      // Empty strings mean "no bound on that side".
+      const fromDate = String(req.body?.fromDate || "").trim();
+      const toDate   = String(req.body?.toDate   || "").trim();
+      const dateRe   = /^\d{4}-\d{2}-\d{2}$/;
+      if (fromDate && !dateRe.test(fromDate)) {
+        return res.status(400).json({ ok: false, message: "Fecha 'desde' inválida." });
+      }
+      if (toDate && !dateRe.test(toDate)) {
+        return res.status(400).json({ ok: false, message: "Fecha 'hasta' inválida." });
+      }
+      if (fromDate && toDate && fromDate > toDate) {
+        return res.status(400).json({ ok: false, message: "El rango de fechas es inválido." });
+      }
+
+      const orders = (fromDate || toDate)
+        ? await findInRange(cafeteriaId, fromDate, toDate)
+        : await findAll(cafeteriaId);
+
+      const csv = buildOrdersCsv(orders);
+      const filenameTag = (fromDate || toDate)
+        ? `_${fromDate || "inicio"}_a_${toDate || "hoy"}`
+        : "";
       res.setHeader("Content-Type",        "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", 'attachment; filename="orders-export.csv"');
+      res.setHeader("Content-Disposition", `attachment; filename="orders-export${filenameTag}.csv"`);
       return res.status(200).send(csv);
     } catch (error) {
       if (error.status) return res.status(error.status).json({ ok: false, message: error.message });
