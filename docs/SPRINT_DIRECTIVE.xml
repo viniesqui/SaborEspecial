@@ -1,0 +1,636 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SaborEspecial — Engineering Sprint Directive
+  Author:    Senior Engineering (audit owner)
+  Audience:  Workstream leads + assigned engineers
+  Framework: SpaceX 5-Step Algorithm
+              1. Make requirements less dumb
+              2. Delete the part / process
+              3. Simplify and optimize
+              4. Accelerate cycle time
+              5. Automate
+  Rule of thumb: never optimize a step that should not exist; never automate
+                 a process that should not exist; never delete a part that
+                 the business model depends on.
+-->
+<sprint-directive id="SE-PERF-2026-Q2" version="1.0">
+
+  <!-- =================================================================== -->
+  <!-- 1. MAIN DIRECTIVE — CONTEXT FOR EVERY WORKSTREAM                    -->
+  <!-- =================================================================== -->
+  <main-directive>
+    <mission>
+      Convert SaborEspecial from a single-tenant-deployed app wearing a
+      multi-tenant schema into a true runtime multi-tenant SaaS, while
+      paying down the build, asset, and duplication debt that will
+      compound linearly with every new cafeteria onboarded.
+    </mission>
+
+    <business-premise>
+      The product is SaaS for cafeterias. Revenue scales with tenant count.
+      Therefore: adding tenant N+1 must cost one row insert, not one deploy.
+      Every architectural decision in this sprint is evaluated against that
+      single sentence.
+    </business-premise>
+
+    <non-negotiables>
+      <item id="NN-1">Zero cross-tenant data leakage. Enforced at DB, API, and cache layers.</item>
+      <item id="NN-2">No regression to existing tenant's UX during migration. Feature-flag every cutover.</item>
+      <item id="NN-3">Every change ships behind CI gates: tests pass, bundle budget holds, lint clean.</item>
+      <item id="NN-4">No new dependencies without written justification against existing stack.</item>
+      <item id="NN-5">Observability before optimization. If we can't measure it, we don't ship it.</item>
+    </non-negotiables>
+
+    <engineering-principles>
+      <principle id="EP-1" name="Single Source of Truth">
+        Tenant identity is resolved once per request, in one place, and
+        passed as immutable context. No re-derivation downstream.
+      </principle>
+      <principle id="EP-2" name="Fail Closed">
+        Absence of a tenant context is an error, never a default. Missing
+        RLS policy denies access, never permits.
+      </principle>
+      <principle id="EP-3" name="DRY at the Module Boundary">
+        Shared logic lives in /shared or /lib. Re-implementation in a
+        page-level script is a code-review block, not a style preference.
+      </principle>
+      <principle id="EP-4" name="Cache What Is Versioned, Network What Is Live">
+        Hashed assets are immutable and cache-first. API responses are
+        network-first with explicit TTL on snapshots.
+      </principle>
+      <principle id="EP-5" name="Idempotent Deploys">
+        Deploying twice with no code change must produce no client-visible
+        churn. SW cache versions are derived, not hand-bumped.
+      </principle>
+      <principle id="EP-6" name="Boring Tech, Sharp Edges">
+        We don't introduce a framework, ORM, or service mesh in this sprint.
+        We sharpen what exists.
+      </principle>
+    </engineering-principles>
+
+    <success-metrics>
+      <metric id="SM-1" target="100%">Of API requests carry a resolved tenant_id in middleware-attached context.</metric>
+      <metric id="SM-2" target="100%">Of tenant-scoped tables enforce RLS policies pinned to JWT claim.</metric>
+      <metric id="SM-3" target="&lt; 60 KB gzipped">Total critical-path JS + CSS per first paint.</metric>
+      <metric id="SM-4" target="&lt; 200 ms">Repeat-visit Time-to-Interactive on app shell (cache-first).</metric>
+      <metric id="SM-5" target="0">Duplicate implementations of any helper detected by jscpd.</metric>
+      <metric id="SM-6" target="1 SQL insert">Cost to onboard tenant N+1, end-to-end.</metric>
+    </success-metrics>
+
+    <timeline>
+      <duration unit="working-days">11</duration>
+      <phasing>
+        <phase order="1" name="Foundation" days="6">WS-01, WS-02, WS-03 — multi-tenant runtime is unblockable prerequisite.</phase>
+        <phase order="2" name="Asset &amp; Code Hygiene" days="3">WS-04, WS-05, WS-06, WS-07 — parallelizable after WS-01 lands.</phase>
+        <phase order="3" name="Templating &amp; Guardrails" days="2">WS-08, WS-09 — locks in the gains; prevents regression.</phase>
+      </phasing>
+    </timeline>
+  </main-directive>
+
+
+  <!-- =================================================================== -->
+  <!-- 2. WORKSTREAMS — ONE PER ASSIGNED ENGINEER                          -->
+  <!-- =================================================================== -->
+  <workstreams>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-01" priority="P0" spacex-step="1-make-requirements-less-dumb">
+      <title>Runtime Tenant Resolution</title>
+      <assigned-engineer role="Principal Backend / Platform Engineer">
+        Rationale: this is the load-bearing decision of the sprint. Touches
+        request lifecycle, auth, session, and every downstream API. Must be
+        owned by the engineer with the deepest knowledge of the request
+        boundary.
+      </assigned-engineer>
+
+      <objective>
+        Establish a single, authoritative function that resolves the active
+        cafeteria_id for every inbound request, exposes it as immutable
+        context, and removes all per-deploy tenant configuration.
+      </objective>
+
+      <requirements>
+        <requirement id="R-01-1">
+          Implement <code>lib/tenant-context.js</code> exporting
+          <code>resolveTenant(req)</code>. Resolution precedence:
+          (1) JWT claim <code>cafeteria_id</code>,
+          (2) subdomain (<code>{slug}.saborespecial.app</code>),
+          (3) path segment (<code>/s/{slug}</code>).
+          Returns <code>{ id, slug, plan, features }</code> or throws
+          <code>TenantNotResolved</code>.
+        </requirement>
+        <requirement id="R-01-2">
+          Replace every direct <code>cafeteria_id</code> read in
+          <code>api/*.js</code> with the resolved context. No handler is
+          permitted to accept <code>cafeteria_id</code> from the request body.
+        </requirement>
+        <requirement id="R-01-3">
+          Add endpoint <code>GET /api/tenant-config</code> returning the
+          public per-tenant config (branding tokens, feature flags, payment
+          provider key). Replaces the static <code>/config.js</code>
+          pattern referenced by every HTML page.
+        </requirement>
+        <requirement id="R-01-4">
+          Remove the per-deploy slug rewrite in <code>vercel.json</code>.
+          One deployment serves all tenants.
+        </requirement>
+        <requirement id="R-01-5">
+          Emit structured log line <code>tenant.resolved</code> with
+          <code>tenant_id</code>, <code>source</code>
+          (jwt|subdomain|path), and <code>request_id</code> for every
+          request. Feeds SM-1.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>100% of <code>/api/*</code> handlers receive tenant via context, verified by static grep test in CI.</criterion>
+        <criterion>Onboarding tenant #2 in staging requires only a row insert into <code>cafeterias</code> + DNS — no deploy.</criterion>
+        <criterion>Request with no resolvable tenant returns HTTP 400 with code <code>TENANT_UNRESOLVED</code>, never falls through to a default.</criterion>
+        <criterion>Load test: 1k req/s mixed across 3 tenants shows zero context leakage in logs.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>None. Unblocks WS-02, WS-03, WS-07, WS-08.</dependencies>
+      <estimate unit="days">3</estimate>
+      <rollback>Feature flag <code>TENANT_RUNTIME_RESOLVE</code>. If off, system reverts to legacy per-deploy slug path. Flag burns down after WS-09 closes.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-02" priority="P0" spacex-step="1-make-requirements-less-dumb">
+      <title>Postgres Row-Level Security Audit &amp; Enforcement</title>
+      <assigned-engineer role="Principal Database Engineer / DBA">
+        Rationale: RLS is the last line of defense against cross-tenant
+        leakage. Must be owned by the engineer with deepest SQL and
+        Supabase auth-chain expertise.
+      </assigned-engineer>
+
+      <objective>
+        Every tenant-scoped table denies access by default and permits only
+        rows matching the <code>cafeteria_id</code> claim in the
+        authenticated JWT.
+      </objective>
+
+      <requirements>
+        <requirement id="R-02-1">
+          Inventory every table in <code>supabase/migrations/*.sql</code>.
+          Classify as <em>tenant-scoped</em>, <em>global</em>, or
+          <em>system</em>. Output: <code>docs/RLS_INVENTORY.md</code>.
+        </requirement>
+        <requirement id="R-02-2">
+          For each tenant-scoped table, add migration enabling RLS and
+          policies: <code>SELECT</code>, <code>INSERT</code>,
+          <code>UPDATE</code>, <code>DELETE</code> each gated on
+          <code>cafeteria_id = (auth.jwt() -&gt;&gt; 'cafeteria_id')::uuid</code>.
+        </requirement>
+        <requirement id="R-02-3">
+          Add negative tests in <code>scripts/test-integrity.js</code>:
+          tenant A JWT cannot read/write tenant B rows. One test per
+          tenant-scoped table.
+        </requirement>
+        <requirement id="R-02-4">
+          Audit the 7 analytics views in
+          <code>supabase/migrations/004_analytics_views.sql</code>.
+          Confirm views inherit RLS from underlying tables or recreate
+          with explicit <code>WHERE cafeteria_id = ...</code>.
+        </requirement>
+        <requirement id="R-02-5">
+          Document the service-role escape hatch: which scripts use it,
+          why, and the audit log expected. No service-role usage outside
+          documented list.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Every tenant-scoped table reports <code>rowsecurity = true</code> in <code>pg_tables</code>.</criterion>
+        <criterion>Cross-tenant negative tests pass for 100% of tenant-scoped tables.</criterion>
+        <criterion>Service-role usage outside the documented list fails CI.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-01 (JWT must carry <code>cafeteria_id</code> claim).</dependencies>
+      <estimate unit="days">2</estimate>
+      <rollback>Migrations are forward-only with explicit down scripts. RLS can be disabled per-table via emergency migration if production incident occurs; requires CTO approval.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-03" priority="P0" spacex-step="3-simplify-and-optimize">
+      <title>Tenant-Aware Service Worker &amp; Per-Tenant Config Loading</title>
+      <assigned-engineer role="Senior Frontend / PWA Engineer">
+        Rationale: SW cache contamination across tenants is a
+        correctness bug, not a perf nit. Requires deep SW lifecycle
+        knowledge.
+      </assigned-engineer>
+
+      <objective>
+        Service Worker caches partition by tenant; per-tenant config
+        loads at runtime from the API, never from a static
+        <code>/config.js</code>.
+      </objective>
+
+      <requirements>
+        <requirement id="R-03-1">
+          Modify <code>sw.js</code> cache names to include tenant slug:
+          <code>se-app-${slug}-v${hash}</code>. Resolution at SW install
+          via <code>self.registration.scope</code> + posted message from
+          page on activation.
+        </requirement>
+        <requirement id="R-03-2">
+          Replace static <code>/config.js</code> includes across all 7
+          HTML files with a runtime fetch of
+          <code>/api/tenant-config</code> on app boot. Cached in
+          <code>sessionStorage</code> with 15-min TTL keyed by tenant slug.
+        </requirement>
+        <requirement id="R-03-3">
+          On tenant switch (e.g., logout / re-login as different
+          cafeteria user), call <code>caches.delete()</code> for all
+          non-matching cache keys.
+        </requirement>
+        <requirement id="R-03-4">
+          Add SW integration test: simulate two tenants on same browser;
+          assert tenant A's cached menu is never served to tenant B.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Cache keys in DevTools Application panel are tenant-prefixed.</criterion>
+        <criterion>No HTML file references <code>/config.js</code> as a static asset.</criterion>
+        <criterion>Cross-tenant cache leakage test passes.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-01 (tenant resolution endpoint must exist).</dependencies>
+      <estimate unit="days">1</estimate>
+      <rollback>SW version bump invalidates all caches client-side; safe to revert without server change.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-04" priority="P1" spacex-step="3-simplify-and-optimize">
+      <title>Build Pipeline — esbuild, Compression, Fingerprinting</title>
+      <assigned-engineer role="Principal DevOps / Build Engineer">
+        Rationale: this is the asset-pipeline foundation. Every other
+        perf win compounds on top of it. Wrong choice here costs the
+        team for years.
+      </assigned-engineer>
+
+      <objective>
+        All client-shipped JS and CSS are minified, gzipped/brotli-served,
+        content-hashed, and aggressively cached. Build is &lt; 5 seconds
+        cold, &lt; 1 second warm.
+      </objective>
+
+      <requirements>
+        <requirement id="R-04-1">
+          Add esbuild as devDependency. Config in
+          <code>scripts/build.mjs</code>. Inputs:
+          <code>app.js</code>, <code>management.js</code>,
+          <code>deliveries.js</code>, <code>track.js</code>,
+          <code>login.js</code>, <code>signup.js</code>,
+          <code>customer-app.html</code> entry.
+          Outputs: <code>dist/*.[hash].js</code>,
+          <code>dist/*.[hash].css</code>.
+        </requirement>
+        <requirement id="R-04-2">
+          Add <code>vercel.json</code> headers config:
+          <code>Cache-Control: public, max-age=31536000, immutable</code>
+          on <code>/dist/*</code>; <code>Cache-Control: no-cache</code>
+          on <code>*.html</code>.
+        </requirement>
+        <requirement id="R-04-3">
+          Enable compression at the platform layer (Vercel ships brotli
+          by default; verify response headers in staging).
+        </requirement>
+        <requirement id="R-04-4">
+          Generate <code>dist/manifest.json</code> mapping logical name →
+          hashed filename. HTML templating layer (WS-08) consumes it.
+        </requirement>
+        <requirement id="R-04-5">
+          Emit build report: per-bundle size, gzip size, delta vs
+          baseline. Written to <code>dist/build-report.json</code> for
+          CI consumption.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Critical-path JS+CSS &lt; 60 KB gzipped (SM-3).</criterion>
+        <criterion>SW cache version derives from build manifest hash, not hand-edited (closes EP-5).</criterion>
+        <criterion>Cold build &lt; 5s on CI runner.</criterion>
+        <criterion>Lighthouse performance score &gt;= 90 on staging.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>None. Can run parallel to WS-01/02/03.</dependencies>
+      <estimate unit="days">1</estimate>
+      <rollback>Vercel rollback to prior deploy reverts asset paths. Old SW cache versions remain valid until expiry.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-05" priority="P1" spacex-step="3-simplify-and-optimize">
+      <title>Service Worker Strategy — Cache-First for App Shell</title>
+      <assigned-engineer role="Senior Frontend / PWA Engineer (continues from WS-03)">
+        Rationale: same engineer owns SW lifecycle end-to-end. Avoids
+        ownership fragmentation.
+      </assigned-engineer>
+
+      <objective>
+        Hashed app-shell assets serve cache-first, eliminating ~200 ms
+        network round-trip on repeat visits. API requests remain
+        network-first with cache fallback.
+      </objective>
+
+      <requirements>
+        <requirement id="R-05-1">
+          In <code>sw.js</code>, classify requests:
+          (a) hashed asset under <code>/dist/*</code> → cache-first,
+          (b) <code>/api/*</code> GET → network-first with cache fallback,
+          (c) HTML → network-first.
+        </requirement>
+        <requirement id="R-05-2">
+          On activation, prune caches not matching current build hash.
+          No more manual <code>v13</code> bumps.
+        </requirement>
+        <requirement id="R-05-3">
+          Add explicit TTL (15 min) to cached <code>/api/*</code>
+          responses; expired entries trigger network refetch even on
+          cache hit.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Repeat-visit TTI &lt; 200 ms (SM-4) measured via Lighthouse on staging.</criterion>
+        <criterion>SW cache version no longer hand-edited; sourced from build manifest.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-04 (manifest hash required).</dependencies>
+      <estimate unit="days">0.5</estimate>
+      <rollback>Revert <code>sw.js</code> commit; clients re-fetch on next activation.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-06" priority="P2" spacex-step="2-delete-the-part">
+      <title>Shared Utility Extraction — Kill Duplicate Implementations</title>
+      <assigned-engineer role="Senior Frontend Engineer">
+        Rationale: surgical refactor across page-level scripts. Owner
+        must be fluent in the existing DOM-direct codebase.
+      </assigned-engineer>
+
+      <objective>
+        Three functions, three locations, one canonical implementation
+        each. Page scripts import from <code>shared/</code>; no inline
+        re-implementations survive.
+      </objective>
+
+      <requirements>
+        <requirement id="R-06-1">
+          Move <code>todayKey()</code> to <code>shared/formatters.js</code>.
+          Delete duplicates at
+          <code>app.js:58</code>,
+          <code>management.js:124</code>,
+          <code>management.js:1038</code> (inline).
+          Reuse server-side <code>lib/dashboard.js:28</code> definition
+          where applicable.
+        </requirement>
+        <requirement id="R-06-2">
+          Move <code>setFeedback()</code> to <code>shared/ui-feedback.js</code>.
+          Delete duplicates at
+          <code>app.js:76</code>,
+          <code>management.js:183</code>,
+          <code>deliveries.js:63</code>.
+          Single signature: <code>setFeedback(el, msg, level)</code>
+          where <code>level ∈ {'info','success','error'}</code>;
+          colors sourced from CSS custom properties.
+        </requirement>
+        <requirement id="R-06-3">
+          Move <code>formatDateLabel()</code> to
+          <code>shared/formatters.js</code>. Delete duplicate at
+          <code>management.js:129</code>. Align with
+          <code>lib/dashboard.js:90</code> <code>formatTimestamp</code>.
+        </requirement>
+        <requirement id="R-06-4">
+          Add jscpd to CI (WS-09) configured to fail on any new
+          duplicate &gt; 5 lines across <code>app.js</code>,
+          <code>management.js</code>, <code>deliveries.js</code>.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>jscpd reports zero duplicates among the three named functions.</criterion>
+        <criterion>No behavioral regression in existing integrity tests.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-04 (so shared modules ship through the build pipeline).</dependencies>
+      <estimate unit="days">0.5</estimate>
+      <rollback>Pure refactor behind unchanged public behavior; revertible by single commit.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-07" priority="P2" spacex-step="2-delete-the-part">
+      <title>API Consolidation — Merge /menu and /dashboard</title>
+      <assigned-engineer role="Senior Backend Engineer">
+        Rationale: API contract owner. Must coordinate breaking change
+        with frontend consumers in <code>management.js</code>.
+      </assigned-engineer>
+
+      <objective>
+        One endpoint serves the overlapping read surface; query
+        parameter controls included resources. Reduces handler code and
+        eliminates duplicated Supabase query orchestration.
+      </objective>
+
+      <requirements>
+        <requirement id="R-07-1">
+          Introduce <code>GET /api/dashboard?include=settings,menu,orders,stats</code>.
+          Default include list preserves current <code>/api/dashboard</code> behavior.
+        </requirement>
+        <requirement id="R-07-2">
+          Delete <code>api/menu.js</code> after one-deploy deprecation
+          window. Update all callers in <code>management.js:797</code>,
+          <code>:810</code>, <code>:830</code>.
+        </requirement>
+        <requirement id="R-07-3">
+          Document the new endpoint in <code>docs/API.md</code> (create
+          if absent). Include tenant-context requirement from WS-01.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Single endpoint serves both prior call sites.</criterion>
+        <criterion>API surface line count drops by &gt;= 40 lines net.</criterion>
+        <criterion>No frontend call site references <code>/api/menu</code>.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-01.</dependencies>
+      <estimate unit="days">0.5</estimate>
+      <rollback>Re-enable <code>api/menu.js</code> handler from git; deprecation window prevents hard break.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-08" priority="P2" spacex-step="2-delete-the-part">
+      <title>HTML Templating &amp; Per-Tenant Branding Slot</title>
+      <assigned-engineer role="Senior Full-Stack Engineer">
+        Rationale: spans server-rendered partials and client-side
+        injection. Must understand both halves of the request.
+      </assigned-engineer>
+
+      <objective>
+        Remove ~420 lines of duplicated HTML across 7 files. Provide a
+        single header/nav/footer partial that injects tenant branding
+        (logo, name, theme tokens) at render time.
+      </objective>
+
+      <requirements>
+        <requirement id="R-08-1">
+          Introduce minimal template system:
+          <code>scripts/build.mjs</code> processes
+          <code>{page}.template.html</code> + partials in
+          <code>partials/{header,nav,footer}.html</code> → emits final
+          HTML to <code>dist/</code>. No runtime templating framework.
+        </requirement>
+        <requirement id="R-08-2">
+          Branding slot:
+          <code>&lt;meta name="tenant-bootstrap" data-endpoint="/api/tenant-config"&gt;</code>.
+          Client hydrates header logo/name/theme on boot from response.
+        </requirement>
+        <requirement id="R-08-3">
+          Delete duplicated header/nav/footer markup from
+          <code>index.html</code>, <code>customer-app.html</code>,
+          <code>management.html</code>, <code>deliveries.html</code>,
+          <code>track.html</code>, <code>signup.html</code>, and
+          <code>login.html</code>.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>Total HTML LOC drops by &gt;= 400 lines.</criterion>
+        <criterion>Visual regression suite (one screenshot per page per tenant) shows zero unintended diffs.</criterion>
+        <criterion>Tenant branding visibly differs between two test tenants on staging.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-01, WS-04.</dependencies>
+      <estimate unit="days">1.5</estimate>
+      <rollback>Original HTML files preserved in git; build step can be disabled via env flag, falling back to static files.</rollback>
+    </workstream>
+
+    <!-- ============================================================= -->
+    <workstream id="WS-09" priority="P1" spacex-step="5-automate">
+      <title>CI/CD Gates — Bundle Budget, Lint, jscpd, Per-Tenant Smoke</title>
+      <assigned-engineer role="Principal DevOps Engineer + Senior QA Engineer">
+        Rationale: this workstream locks in every other workstream's
+        gains. Without it, all wins regress within two sprints.
+      </assigned-engineer>
+
+      <objective>
+        Every PR is automatically blocked from introducing: (a) bundle
+        growth, (b) lint violations, (c) code duplication, (d) cross-tenant
+        regressions.
+      </objective>
+
+      <requirements>
+        <requirement id="R-09-1">
+          ESLint configured for the codebase. Rules: no-unused-vars,
+          no-implicit-globals, prefer-const, eqeqeq. PR fails on any
+          violation in changed files.
+        </requirement>
+        <requirement id="R-09-2">
+          jscpd configured with threshold: zero duplicates &gt; 5 lines
+          across all <code>*.js</code> in repo root and <code>shared/</code>.
+        </requirement>
+        <requirement id="R-09-3">
+          Bundle-budget check: compare <code>dist/build-report.json</code>
+          (from WS-04) against <code>.bundle-baseline.json</code>. Fail
+          PR if any bundle grows &gt; 5% over baseline. Baseline updated
+          only via explicit commit.
+        </requirement>
+        <requirement id="R-09-4">
+          Per-tenant smoke test: spin up staging with two seed tenants;
+          run <code>scripts/test-integrity.js --tenant-isolation</code>;
+          verify zero cross-contamination and identical feature parity.
+        </requirement>
+        <requirement id="R-09-5">
+          Pre-commit hook (husky or equivalent): run ESLint + jscpd on
+          staged files. Fast path only; full CI runs the heavy suite.
+        </requirement>
+        <requirement id="R-09-6">
+          Add <code>.github/workflows/perf.yml</code>: Lighthouse CI on
+          every preview deploy. Threshold: performance &gt;= 85.
+        </requirement>
+      </requirements>
+
+      <acceptance-criteria>
+        <criterion>PR introducing a 10 KB bundle bump is blocked by CI.</criterion>
+        <criterion>PR introducing a duplicate <code>todayKey()</code> is blocked by jscpd.</criterion>
+        <criterion>PR breaking RLS isolation is blocked by per-tenant smoke.</criterion>
+      </acceptance-criteria>
+
+      <dependencies>WS-01 (tenant context), WS-02 (RLS), WS-04 (build report), WS-06 (shared modules).</dependencies>
+      <estimate unit="days">1.5</estimate>
+      <rollback>CI gates can be disabled per-workflow via repo settings if an emergency hotfix is required; logged and reviewed weekly.</rollback>
+    </workstream>
+
+  </workstreams>
+
+
+  <!-- =================================================================== -->
+  <!-- 3. EXECUTION ORDER &amp; PARALLELIZATION                            -->
+  <!-- =================================================================== -->
+  <execution-plan>
+    <wave order="1" parallel="true">
+      <run workstream="WS-01" />
+      <run workstream="WS-04" />
+      <note>WS-01 is the critical path. WS-04 runs parallel because it has zero dependencies on tenant work and unblocks WS-05/06/08.</note>
+    </wave>
+    <wave order="2" parallel="true" depends-on="WS-01">
+      <run workstream="WS-02" />
+      <run workstream="WS-03" />
+      <run workstream="WS-07" />
+    </wave>
+    <wave order="3" parallel="true" depends-on="WS-04">
+      <run workstream="WS-05" />
+      <run workstream="WS-06" />
+    </wave>
+    <wave order="4" depends-on="WS-01,WS-04">
+      <run workstream="WS-08" />
+    </wave>
+    <wave order="5" depends-on="WS-01,WS-02,WS-04,WS-06">
+      <run workstream="WS-09" />
+    </wave>
+  </execution-plan>
+
+
+  <!-- =================================================================== -->
+  <!-- 4. RISKS &amp; MITIGATIONS                                          -->
+  <!-- =================================================================== -->
+  <risks>
+    <risk id="RK-1" severity="critical">
+      <description>Cross-tenant data leak during WS-01 rollout.</description>
+      <mitigation>Feature flag <code>TENANT_RUNTIME_RESOLVE</code>; canary one staging tenant for 48h before prod; WS-02 RLS lands within same sprint to provide defense in depth.</mitigation>
+    </risk>
+    <risk id="RK-2" severity="high">
+      <description>RLS policies break existing service-role scripts (migrate, seed, accounting export).</description>
+      <mitigation>WS-02 R-02-5 mandates explicit service-role inventory. Tests run before policies merge.</mitigation>
+    </risk>
+    <risk id="RK-3" severity="medium">
+      <description>Build pipeline breaks existing deploy contract; assets 404 in prod.</description>
+      <mitigation>WS-04 ships with parallel-path deploy: hashed assets live alongside legacy paths for one deploy cycle; cutover after smoke passes.</mitigation>
+    </risk>
+    <risk id="RK-4" severity="medium">
+      <description>HTML templating (WS-08) introduces visual regressions across 7 pages.</description>
+      <mitigation>Screenshot diff suite required as acceptance criterion. PR blocked on visual delta &gt; 2%.</mitigation>
+    </risk>
+    <risk id="RK-5" severity="low">
+      <description>Engineers re-introduce duplicates after WS-06.</description>
+      <mitigation>WS-09 jscpd gate enforced at PR boundary; pre-commit hook catches at developer machine.</mitigation>
+    </risk>
+  </risks>
+
+
+  <!-- =================================================================== -->
+  <!-- 5. EXIT CRITERIA — SPRINT IS DONE WHEN ALL OF THE FOLLOWING HOLD    -->
+  <!-- =================================================================== -->
+  <exit-criteria>
+    <criterion ref="SM-1">100% of API requests carry resolved tenant context.</criterion>
+    <criterion ref="SM-2">100% of tenant-scoped tables enforce RLS.</criterion>
+    <criterion ref="SM-3">Critical-path JS+CSS &lt; 60 KB gzipped on prod.</criterion>
+    <criterion ref="SM-4">Repeat-visit TTI &lt; 200 ms.</criterion>
+    <criterion ref="SM-5">jscpd reports zero duplicates of named helpers.</criterion>
+    <criterion ref="SM-6">Onboarding tenant N+1 demonstrated end-to-end via single SQL insert + DNS entry.</criterion>
+    <criterion>All CI gates from WS-09 enforced on <code>main</code> branch.</criterion>
+    <criterion>All feature flags introduced during sprint are either burned down or scheduled for burndown next sprint.</criterion>
+  </exit-criteria>
+
+</sprint-directive>
