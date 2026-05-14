@@ -1,0 +1,29 @@
+# Files Vercel respects from .gitignore (node_modules, dist, .env*) are
+# already excluded. This list covers what is NOT in .gitignore but is
+# noise for the deployed site.
+
+# CI / dev tooling that is irrelevant at runtime
+.github
+.githooks
+.jscpd-report
+.lighthouseci
+.bundle-baseline.json
+.jscpd.json
+.lighthouserc.json
+eslint.config.js
+
+# Docs / checklists — public on GitHub, no reason to ship them
+docs
+*.md
+CLAUDE.md
+DEVELOPER_QUICKSTART.md
+PRODUCTION_CHECKLIST.md
+README.md
+
+# DB migration sources are run from CI/local against Supabase, not from
+# the deployed Vercel surface
+supabase
+
+# Local-only setup helpers
+setup.sh
+.env.example
