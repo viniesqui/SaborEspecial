@@ -1,0 +1,76 @@
+{
+  "builtAt": "2026-05-14T23:41:45.700Z",
+  "manifestHash": "7e60fb0ad4b2",
+  "bundles": {
+    "logger.js": {
+      "bytes": 945,
+      "gzip": 579,
+      "brotli": 461
+    },
+    "supabase-client.js": {
+      "bytes": 366,
+      "gzip": 220,
+      "brotli": 172
+    },
+    "status-banner.js": {
+      "bytes": 1022,
+      "gzip": 494,
+      "brotli": 412
+    },
+    "api-client.js": {
+      "bytes": 1273,
+      "gzip": 694,
+      "brotli": 611
+    },
+    "formatters.js": {
+      "bytes": 1569,
+      "gzip": 678,
+      "brotli": 586
+    },
+    "app.js": {
+      "bytes": 15320,
+      "gzip": 4689,
+      "brotli": 4133
+    },
+    "management.js": {
+      "bytes": 39413,
+      "gzip": 10581,
+      "brotli": 9465
+    },
+    "deliveries.js": {
+      "bytes": 8460,
+      "gzip": 2773,
+      "brotli": 2423
+    },
+    "track.js": {
+      "bytes": 4150,
+      "gzip": 1718,
+      "brotli": 1505
+    },
+    "login.js": {
+      "bytes": 1492,
+      "gzip": 730,
+      "brotli": 597
+    },
+    "signup.js": {
+      "bytes": 1453,
+      "gzip": 702,
+      "brotli": 575
+    },
+    "styles.css": {
+      "bytes": 52844,
+      "gzip": 10297,
+      "brotli": 9015
+    }
+  },
+  "totals": {
+    "bytes": 128307,
+    "gzip": 34155,
+    "brotli": 29955
+  },
+  "criticalPath": {
+    "bytes": 73339,
+    "gzip": 17651,
+    "brotli": 15390
+  }
+}

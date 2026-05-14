@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# WS-09 R-09-5 — pre-commit fast path.
+# Runs ESLint on staged JS and jscpd on the shared/page-level surface.
+# Full bundle-budget + perf checks run in CI, not here.
+
+set -e
+
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '\.(js|mjs)$' \
+  | grep -vE '^(dist/|node_modules/|api/|supabase/)' || true)
+
+if [ -n "$STAGED_JS" ]; then
+  echo "→ eslint (staged)"
+  echo "$STAGED_JS" | xargs npx --no-install eslint --max-warnings=0
+fi
+
+# jscpd is cheap — always run against the duplication-sensitive surface.
+echo "→ jscpd"
+npx --no-install jscpd --silent >/dev/null
+
+echo "✓ pre-commit OK"

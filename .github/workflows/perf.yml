@@ -1,0 +1,34 @@
+name: perf
+
+# WS-09 R-09-6 — Lighthouse CI on every preview deploy.
+# Threshold: performance >= 85.
+
+on:
+  deployment_status:
+
+jobs:
+  lighthouse:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            ${{ github.event.deployment_status.target_url }}
+            ${{ github.event.deployment_status.target_url }}/customer-app.html
+            ${{ github.event.deployment_status.target_url }}/management.html
+          configPath: ./.lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true

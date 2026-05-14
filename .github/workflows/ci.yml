@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Fetch base
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=50 origin ${{ github.base_ref }}
+
+      - name: Lint changed files (WS-09 R-09-1)
+        env:
+          LINT_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}
+        run: npm run lint:changed
+
+      - name: Duplication check (WS-09 R-09-2)
+        run: npm run dup-check
+
+      - name: Build (WS-04)
+        run: npm run build
+
+      - name: Bundle budget (WS-09 R-09-3)
+        run: npm run bundle-budget
+
+      - name: Upload build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: dist/build-report.json
+          if-no-files-found: ignore
