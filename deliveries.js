@@ -1,8 +1,10 @@
 (function () {
   "use strict";
 
-  var banner  = window.SE.banner;
-  var fmt     = window.SE.fmt;
+  var banner   = window.SE.banner;
+  var fmt      = window.SE.fmt;
+  var dates    = window.SE.dates;
+  var feedback = window.SE.feedback;
 
   var CACHE_KEY       = "ceep-deliveries-cache-v1";
   var accessToken     = "";
@@ -35,17 +37,11 @@
     qaFeedback:         document.getElementById("qaFeedback")
   };
 
-  // ── Date helpers (mirrors getDayKey in lib/dashboard.js) ──────────
-
-  function crDateKey(offsetDays) {
-    offsetDays = offsetDays || 0;
-    return new Date(Date.now() - 6 * 60 * 60 * 1000 + offsetDays * 24 * 60 * 60 * 1000)
+  function getTargetDate() {
+    if (selectedDateMode !== "tomorrow") return dates.today();
+    return new Date(Date.now() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10);
-  }
-
-  function getTargetDate() {
-    return crDateKey(selectedDateMode === "tomorrow" ? 1 : 0);
   }
 
   // ── Cache ─────────────────────────────────────────────────────────
@@ -60,10 +56,7 @@
   // ── Feedback ──────────────────────────────────────────────────────
 
   function setFeedback(message, isError) {
-    var el = document.getElementById("deliveriesFeedback");
-    if (!el) return;
-    el.textContent = message || "";
-    el.style.color = isError ? "var(--primary-dark,#842f3d)" : "var(--muted,#888)";
+    feedback.set(document.getElementById("deliveriesFeedback"), message, isError ? "error" : "info");
   }
 
   // ── Render ────────────────────────────────────────────────────────
@@ -264,7 +257,7 @@
     if (isSaving) return;
     var name   = (els.qaName   ? els.qaName.value   : "").trim() || "Cliente";
     var method = (els.qaMethod ? els.qaMethod.value : "EFECTIVO");
-    var today  = crDateKey(0);
+    var today  = dates.today();
 
     isSaving = true;
     if (els.qaSubmit)   els.qaSubmit.disabled = true;

@@ -1,6 +1,6 @@
 {
-  "builtAt": "2026-05-14T23:41:45.700Z",
-  "manifestHash": "7e60fb0ad4b2",
+  "builtAt": "2026-05-15T00:10:30.992Z",
+  "manifestHash": "a3560334a685",
   "bundles": {
     "logger.js": {
       "bytes": 945,
@@ -23,24 +23,29 @@
       "brotli": 611
     },
     "formatters.js": {
-      "bytes": 1569,
-      "gzip": 678,
-      "brotli": 586
+      "bytes": 1902,
+      "gzip": 851,
+      "brotli": 753
+    },
+    "ui-feedback.js": {
+      "bytes": 229,
+      "gzip": 184,
+      "brotli": 149
     },
     "app.js": {
-      "bytes": 15320,
-      "gzip": 4689,
-      "brotli": 4133
+      "bytes": 15252,
+      "gzip": 4680,
+      "brotli": 4129
     },
     "management.js": {
-      "bytes": 39413,
-      "gzip": 10581,
-      "brotli": 9465
+      "bytes": 38676,
+      "gzip": 10272,
+      "brotli": 9209
     },
     "deliveries.js": {
-      "bytes": 8460,
-      "gzip": 2773,
-      "brotli": 2423
+      "bytes": 8405,
+      "gzip": 2751,
+      "brotli": 2401
     },
     "track.js": {
       "bytes": 4150,
@@ -64,13 +69,13 @@
     }
   },
   "totals": {
-    "bytes": 128307,
-    "gzip": 34155,
-    "brotli": 29955
+    "bytes": 128009,
+    "gzip": 34172,
+    "brotli": 29989
   },
   "criticalPath": {
-    "bytes": 73339,
-    "gzip": 17651,
-    "brotli": 15390
+    "bytes": 73833,
+    "gzip": 17999,
+    "brotli": 15702
   }
 }
