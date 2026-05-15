@@ -1,10 +1,12 @@
 (function () {
   "use strict";
 
-  var config  = window.APP_CONFIG || {};
-  var banner  = window.SE.banner;
-  var fmt     = window.SE.fmt;
-  var api     = window.SE.api.make(null);
+  var config   = window.APP_CONFIG || {};
+  var banner   = window.SE.banner;
+  var fmt      = window.SE.fmt;
+  var dates    = window.SE.dates;
+  var feedback = window.SE.feedback;
+  var api      = window.SE.api.make(null);
 
   var slug = String(config.cafeteriaSlug || "ceep");
 
@@ -53,12 +55,6 @@
     pkgTrackingMessage:   document.getElementById("pkgTrackingMessage")
   };
 
-  // ── Day key utilities (mirrors lib/dashboard.js) ──────────────────
-
-  function todayKey() {
-    return new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  }
-
   // ── Cache helpers ─────────────────────────────────────────────────
 
   function loadCached() {
@@ -74,8 +70,7 @@
   // ── Feedback ──────────────────────────────────────────────────────
 
   function setFeedback(message, isError) {
-    els.formFeedback.textContent = message || "";
-    els.formFeedback.style.color = isError ? "#842f3d" : "#705d52";
+    feedback.set(els.formFeedback, message, isError ? "error" : "info");
   }
 
   // ── Week day tabs ─────────────────────────────────────────────────
@@ -231,7 +226,7 @@
     // Customers may only order for today, so we filter the week down to
     // today's entry only — no future-day pre-ordering from the public UI.
     if (snapshot.weekMenus && snapshot.weekMenus.length) {
-      var today      = todayKey();
+      var today      = dates.today();
       var todayOnly  = snapshot.weekMenus.filter(function (d) { return d.date === today; });
       var weekToShow = todayOnly.length ? todayOnly : snapshot.weekMenus.slice(0, 1);
 
@@ -335,7 +330,7 @@
       buyerName:     String(fd.get("buyerName")    || "").trim(),
       buyerEmail:    String(fd.get("buyerEmail")   || "").trim().toLowerCase(),
       paymentMethod: String(fd.get("paymentMethod") || "").trim(),
-      targetDate:    state.selectedDate || todayKey(),
+      targetDate:    state.selectedDate || dates.today(),
       requestId:     state.currentRequestId
     };
 

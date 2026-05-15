@@ -9,12 +9,11 @@
   var selectedDayKey   = "";   // The day currently loaded in the menu form
   var weekMenus        = [];   // Cache of the 7-day grid data
 
-  var banner = window.SE.banner;
-  var fmt    = window.SE.fmt;
+  var banner   = window.SE.banner;
+  var fmt      = window.SE.fmt;
+  var dates    = window.SE.dates;
+  var feedback = window.SE.feedback;
   var api;
-
-  // Spanish day abbreviations — index matches Date.getDay() (0=Sun, 1=Mon…)
-  var DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   // ── Element refs ──────────────────────────────────────────────────
   var els = {
@@ -121,20 +120,6 @@
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  function todayKeyFromBrowser() {
-    // Mirrors getDayKey() from lib/dashboard.js: UTC-6 shift.
-    return new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  }
-
-  function formatDateLabel(dateStr) {
-    // "2026-04-28" → "Mar 28 abr"
-    var d    = new Date(dateStr + "T12:00:00Z");
-    var day  = DIAS[d.getUTCDay()];
-    var dom  = d.getUTCDate();
-    var mon  = d.toLocaleDateString("es-CR", { month: "short", timeZone: "UTC" });
-    return day + " " + dom + " " + mon;
-  }
-
   // ── Role-based UI adaptation ──────────────────────────────────────
 
   function adaptToRole(role) {
@@ -181,9 +166,7 @@
   // ── Feedback helpers ──────────────────────────────────────────────
 
   function setFeedback(message, isError) {
-    if (!els.menuFeedback) return;
-    els.menuFeedback.textContent = message || "";
-    els.menuFeedback.style.color = isError ? "#842f3d" : "#705d52";
+    feedback.set(els.menuFeedback, message, isError ? "error" : "info");
   }
 
   function clearEmailWarning() {
@@ -208,7 +191,7 @@
       return;
     }
 
-    var todayKey = todayKeyFromBrowser();
+    var todayKey = dates.today();
     var html = "";
     weekMenus.forEach(function (day) {
       var isToday    = day.date === todayKey;
@@ -224,7 +207,7 @@
         '<div class="' + cardClass + '" role="listitem">' +
           '<button type="button" class="week-grid__btn" data-day-key="' + escHtml(day.date) + '" ' +
             'aria-pressed="' + (isSelected ? "true" : "false") + '">' +
-            '<span class="week-grid__day-name">' + escHtml(formatDateLabel(day.date)) + (isToday ? ' <em>(hoy)</em>' : '') + '</span>' +
+            '<span class="week-grid__day-name">' + escHtml(dates.formatLabel(day.date)) + (isToday ? ' <em>(hoy)</em>' : '') + '</span>' +
             '<span class="week-grid__menu-title">' + statusText + '</span>' +
             (hasMenu ? '<span class="week-grid__price">' + escHtml(fmt.currency(day.menu.price)) + '</span>' : '') +
           '</button>' +
@@ -246,8 +229,8 @@
     // Update form state
     if (els.menuDayKey) els.menuDayKey.value = dayKey;
 
-    var todayKey   = todayKeyFromBrowser();
-    var dateLabel  = dayKey === todayKey ? "hoy (" + formatDateLabel(dayKey) + ")" : formatDateLabel(dayKey);
+    var todayKey   = dates.today();
+    var dateLabel  = dayKey === todayKey ? "hoy (" + dates.formatLabel(dayKey) + ")" : dates.formatLabel(dayKey);
     if (els.selectedDayLabel) els.selectedDayLabel.textContent = dateLabel;
 
     // Pre-fill form with this day's existing menu if available
@@ -358,12 +341,6 @@
   }
 
   // ── ADMIN delivery-status overview (read-only) ───────────────────
-  var DELIVERY_LABEL = {
-    PENDIENTE_ENTREGA:   { text: "PENDIENTE",     mod: "pending"  },
-    EN_PREPARACION:      { text: "EN PREPARACIÓN", mod: "prep"     },
-    LISTO_PARA_ENTREGA:  { text: "LISTO",         mod: "ready"    },
-    ENTREGADO:           { text: "ENTREGADO",     mod: "done"     }
-  };
 
   function renderAdminDeliveries(snapshot) {
     if (els.adminPendingDeliveries) els.adminPendingDeliveries.textContent = String(snapshot.pendingDeliveries || 0);
@@ -381,7 +358,6 @@
     var fragment = document.createDocumentFragment();
     orders.forEach(function (order) {
       var node  = els.adminDeliveryRowTpl.content.cloneNode(true);
-      var label = DELIVERY_LABEL[order.deliveryStatus] || DELIVERY_LABEL.PENDIENTE_ENTREGA;
       var paid  = fmt.paymentLabel(order.paymentStatus) === "PAGADO";
 
       node.querySelector(".buyer-name").textContent = order.buyerName;
@@ -794,7 +770,7 @@
 
   async function loadWeekMenus() {
     try {
-      var result = await api.fetchJson("/menu");
+      var result = await api.fetchJson("/dashboard?include=menu");
       renderWeekGrid(result.weekMenus || []);
       // Auto-select today if nothing is selected yet
       if (!selectedDayKey && result.weekMenus && result.weekMenus.length) {
@@ -945,7 +921,7 @@
     banner.setSyncing();
 
     try {
-      var result = await api.fetchJson("/menu", {
+      var result = await api.fetchJson("/dashboard", {
         method: "POST",
         body:   { menu: { title, description: desc, price, cost }, dayKey }
       });
@@ -1034,8 +1010,7 @@
         return;
       }
 
-      var now       = new Date();
-      var todayKey  = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+      var todayKey  = dates.today();
       var rangeTag  = fromDate || toDate
         ? "-" + (fromDate || "inicio") + "_a_" + (toDate || todayKey)
         : "-todos-" + todayKey;
@@ -1076,7 +1051,7 @@
 
     var name   = (els.manualSaleName  ? els.manualSaleName.value  : "").trim() || "Cliente";
     var method = (els.manualSaleMethod ? els.manualSaleMethod.value : "EFECTIVO");
-    var target = todayKeyFromBrowser();
+    var target = dates.today();
 
     isSaving = true;
     if (els.manualSaleSubmit)   els.manualSaleSubmit.disabled = true;
@@ -1168,8 +1143,6 @@
 
   // ── Staff (Equipo) management ─────────────────────────────────────
 
-  var ROLE_LABELS = { ADMIN: "Administrador", HELPER: "Asistente", ORDERS: "Entregas" };
-
   function renderStaffList(staff) {
     if (!els.staffList) return;
     if (!staff || !staff.length) {
@@ -1180,7 +1153,6 @@
       var lastSeen = s.lastSignInAt
         ? new Date(s.lastSignInAt).toLocaleDateString("es-CR")
         : (s.invitedAt ? "Pendiente de aceptar" : "—");
-      var roleLabel = ROLE_LABELS[s.role] || s.role;
       return '' +
         '<div class="admin-orders-table__row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid #eee;">' +
           '<div><strong>' + escHtml(s.email) + '</strong></div>' +
@@ -1336,9 +1308,6 @@
       els.diagnosticsContent.innerHTML = '<p class="insights-empty">Error: ' + escHtml(err.message) + '</p>';
     }
   }
-
-  function setBannerSynced() { banner.setSynced(); }
-  function setBannerError(msg, fn) { banner.setError(msg, fn); }
 
   // ── Init ──────────────────────────────────────────────────────────
 

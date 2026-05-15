@@ -91,4 +91,26 @@
       timeShort:    timeShort
     };
   })();
+
+  // ── Date keys & labels (canonical client copies of lib/dashboard.js) ──
+  // WS-06 R-06-1 / R-06-3: one implementation per helper.
+
+  var DIAS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+  window.SE.dates = {
+    // Today's YYYY-MM-DD in Costa Rica time (UTC-6, no DST).
+    // Mirrors getDayKey() in lib/dashboard.js.
+    today: function () {
+      return new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    },
+
+    // "2026-04-28" → "Mar 28 abr". Anchored at noon UTC so weekday is stable.
+    formatLabel: function (dateStr) {
+      var d   = new Date(dateStr + "T12:00:00Z");
+      var day = DIAS_ES[d.getUTCDay()];
+      var dom = d.getUTCDate();
+      var mon = d.toLocaleDateString("es-CR", { month: "short", timeZone: "UTC" });
+      return day + " " + dom + " " + mon;
+    }
+  };
 })();

@@ -20,6 +20,7 @@ const JS_ENTRIES = [
   ["status-banner",   "shared/status-banner.js"],
   ["api-client",      "shared/api-client.js"],
   ["formatters",      "shared/formatters.js"],
+  ["ui-feedback",     "shared/ui-feedback.js"],
   ["app",             "app.js"],
   ["management",      "management.js"],
   ["deliveries",      "deliveries.js"],
@@ -41,6 +42,7 @@ const CRITICAL_PATH_NAMES = [
   "status-banner.js",
   "api-client.js",
   "formatters.js",
+  "ui-feedback.js",
   "app.js",
 ];
 
